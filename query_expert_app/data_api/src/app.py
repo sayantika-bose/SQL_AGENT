@@ -6,6 +6,9 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 import logging
+from dotenv import load_dotenv,find_dotenv
+load_dotenv(find_dotenv())
+
 
 from data_api.src.core.config import get_settings
 from data_api.src.core.database import init_db

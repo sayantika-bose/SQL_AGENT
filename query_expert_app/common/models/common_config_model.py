@@ -30,6 +30,7 @@ class LoggingConfig(BaseModel):
 class DataApiConfig(BaseModel):
     host: str = Field("localhost", description="Data API host")
     port: int = Field(8001, description="Data API port")
+    url: str
     
     @property
     def url(self) -> str:

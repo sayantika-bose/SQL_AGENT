@@ -1,13 +1,13 @@
 """
 Task for handling user questions with LangGraph agent and SQL Agent Tool.
 """
-from typing import Dict, Any
+from typing import Dict, Any, Literal
 import logging
 
 from worker.src.core.celery_app import celery_app, update_task_progress
 from common.enum.task_enum import TaskType
 
-from langchain_ollama import OllamaLLM
+from langchain_ollama import ChatOllama
 from langgraph.graph import StateGraph, MessagesState, START, END
 from langgraph.prebuilt import ToolNode
 from langchain_core.messages import HumanMessage, SystemMessage
@@ -17,15 +17,17 @@ from worker.src.tools.sql_tool import SQLAgentTool
 logger = logging.getLogger(__name__)
 
 
-def get_ollama_model(model_name: str = "gpt-oss:20b-cloud") -> OllamaLLM:
-    """Get Ollama LLM model instance."""
-    return OllamaLLM(model=model_name)
-
+def get_ollama_model(model_name: str = "gpt-oss:20b-cloud") -> ChatOllama:
+    """Get ChatOllama model instance with tool support."""
+    return ChatOllama(
+        model=model_name,
+        temperature=0
+    )
 
 def create_agent_graph():
     """Create the LangGraph agent with SQL Agent Tool."""
     
-    # Initialize LLM
+    # Initialize ChatOllama (supports tool calling)
     llm = get_ollama_model()
     
     # Initialize SQL Agent Tool
@@ -37,11 +39,25 @@ def create_agent_graph():
     
     # Define the agent function
     def call_model(state: MessagesState):
+        """Call the LLM with tools"""
         messages = state["messages"]
         response = llm_with_tools.invoke(messages)
         return {"messages": [response]}
     
-    # Define the graph
+    # Define routing function
+    def should_continue(state: MessagesState) -> Literal["tools", END]:
+        """Determine whether to continue with tools or end"""
+        messages = state["messages"]
+        last_message = messages[-1]
+        
+        # If there are tool calls, route to tools node
+        if hasattr(last_message, "tool_calls") and last_message.tool_calls:
+            return "tools"
+        
+        # Otherwise, end the conversation
+        return END
+    
+    # Build the graph
     workflow = StateGraph(MessagesState)
     
     # Add nodes
@@ -50,17 +66,17 @@ def create_agent_graph():
     
     # Add edges
     workflow.add_edge(START, "agent")
-    
-    def should_continue(state: MessagesState):
-        messages = state["messages"]
-        last_message = messages[-1]
-        if hasattr(last_message, "tool_calls") and last_message.tool_calls:
-            return "tools"
-        return END
-    
-    workflow.add_conditional_edges("agent", should_continue, ["tools", END])
+    workflow.add_conditional_edges(
+        "agent",
+        should_continue,
+        {
+            "tools": "tools",
+            END: END
+        }
+    )
     workflow.add_edge("tools", "agent")
     
+    # Compile the graph
     return workflow.compile()
 
 
@@ -103,36 +119,70 @@ def process_user_question(question_data: Dict[str, Any]) -> Dict[str, Any]:
         agent = create_agent_graph()
         update_task_progress(30, "Agent initialized with SQL Agent Tool")
         
-        # Prepare messages with system prompt
+       # Prepare messages with system prompt
         system_message = SystemMessage(
-            content="""You are an intelligent assistant that helps users understand and query their database.
+            content="""You are a highly intelligent SQL assistant specialized in analyzing financial and operational data from the database.
 
-You have access to a powerful SQL Agent Tool that can:
-- Answer questions about database structure (tables, columns, schema)
-- Execute read-only SQL queries to retrieve data
-- Analyze and interpret query results
-- Provide clear, natural language answers
+YOUR CORE CAPABILITIES:
+- Answer questions about database structure, schema, and available data
+- Execute read-only SQL queries to retrieve and analyze data
+- Provide insights on financial metrics, operational statistics, and business data
+- Handle data aggregations, trends, and complex analytical queries
 
-How to use the tool:
-- Use the 'sql_database_agent' tool for ANY question about the database or its data
-- Pass the user's question directly to the tool
-- The tool will handle schema exploration, query generation, and result formatting
-- Trust the tool's analysis and present its findings to the user
+YOUR TOOL:
+You have access to the 'sql_database_agent' tool which can:
+- Explore database schema and table structures
+- Generate and execute SELECT queries
+- Retrieve, filter, and aggregate data
+- Provide formatted results with clear explanations
 
-Guidelines:
-- Always use the SQL Agent Tool for database-related questions
-- Don't try to write SQL queries yourself - let the tool handle it
-- Present the tool's results in a clear, user-friendly manner
-- If the tool returns an error, explain it to the user and suggest alternatives
-- For complex questions, you may need to call the tool multiple times
+IMPORTANT RULES:
 
-Example workflow:
-1. User asks: "How many orders are there?"
-2. Use sql_database_agent with question: "How many orders are there?"
-3. Present the tool's answer to the user
+1. GREETINGS & CASUAL CONVERSATION:
+   - Respond directly to greetings (hello, hi, how are you, etc.) WITHOUT using the tool
+   - Be friendly and professional in casual interactions
+   - After greeting, guide users on what you can help with
 
-Remember: The SQL Agent Tool is intelligent and can understand complex questions, 
-so pass the user's question directly to it without modification."""
+2. DATABASE & DATA QUESTIONS:
+   - ALWAYS use the sql_database_agent tool for ANY question about:
+     * Database structure (tables, columns, schema)
+     * Data retrieval (show, list, get, find data)
+     * Counts, statistics, aggregations
+     * Financial analysis, revenue, orders, transactions
+     * Operational metrics (users, products, inventory)
+     * Trends, comparisons, rankings
+   - Pass the user's question directly to the tool
+   - Trust the tool's analysis and present results clearly
+
+3. OFF-TOPIC QUESTIONS:
+   - POLITELY DECLINE questions about:
+     * General knowledge (weather, news, history)
+     * Technical advice unrelated to databases
+     * Personal opinions or recommendations
+     * Topics outside database/data analysis
+   - Explain: "I'm specialized in analyzing database and financial data. I can only help with questions about the data in our database."
+
+4. RESPONSE GUIDELINES:
+   - For greetings: Respond warmly and briefly explain your capabilities
+   - For data questions: Use the tool, then explain results in clear, business-friendly language
+   - For off-topic: Politely redirect to your specialized area
+   - Always be professional, concise, and helpful
+
+EXAMPLES:
+
+User: "Hello!"
+You: "Hello! I'm your SQL database assistant. I specialize in analyzing financial and operational data. I can help you explore database tables, retrieve specific data, calculate metrics, and provide insights. What would you like to know about the data?"
+
+User: "How many orders were placed last month?"
+You: [Use sql_database_agent tool with the question, then present results]
+
+User: "What's the weather today?"
+You: "I'm specialized in analyzing database and financial data. I can only help with questions about the data in our database, such as sales figures, customer information, inventory levels, etc. Is there any data analysis I can help you with?"
+
+User: "Show me the top 5 customers by revenue"
+You: [Use sql_database_agent tool with the question, then present results with insights]
+
+Remember: Your expertise is DATABASE ANALYSIS. Use your tool for data questions, respond directly to greetings, and politely decline everything else."""
         )
         human_message = HumanMessage(content=question)
         

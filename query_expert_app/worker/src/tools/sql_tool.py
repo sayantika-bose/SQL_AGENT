@@ -8,6 +8,9 @@ from pydantic import BaseModel, Field
 from langchain_core.tools import BaseTool
 from langchain_core.callbacks import CallbackManagerForToolRun
 import logging
+from langchain_ollama import ChatOllama
+from langchain_core.messages import SystemMessage, HumanMessage
+        
 
 from common.config.config_manager import get_common_settings
 
@@ -48,12 +51,45 @@ class SQLAgentTool(BaseTool):
     args_schema: Type[BaseModel] = SQLAgentInput
     return_direct: bool = False
     
+    # Use class variable for config (loaded once)
+    _config = None
+    _data_api_url = None
+    
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.config = get_common_settings()
-        self.data_api_url = self.config.data_api_url
-        self.schema_cache: Optional[Dict[str, Any]] = None
-        self.tables_cache: Optional[List[str]] = None
+        # Load config as class variable to avoid Pydantic field issues
+        if SQLAgentTool._config is None:
+            SQLAgentTool._config = get_common_settings()
+            SQLAgentTool._data_api_url = SQLAgentTool._config.data_api.url
+        
+        # Instance-specific caches
+        object.__setattr__(self, '_schema_cache', None)
+        object.__setattr__(self, '_tables_cache', None)
+    
+    @property
+    def data_api_url(self) -> str:
+        """Get Data API URL"""
+        return SQLAgentTool._data_api_url
+    
+    @property
+    def schema_cache(self) -> Optional[Dict[str, Any]]:
+        """Get schema cache"""
+        return object.__getattribute__(self, '_schema_cache')
+    
+    @schema_cache.setter
+    def schema_cache(self, value: Optional[Dict[str, Any]]):
+        """Set schema cache"""
+        object.__setattr__(self, '_schema_cache', value)
+    
+    @property
+    def tables_cache(self) -> Optional[List[str]]:
+        """Get tables cache"""
+        return object.__getattribute__(self, '_tables_cache')
+    
+    @tables_cache.setter
+    def tables_cache(self, value: Optional[List[str]]):
+        """Set tables cache"""
+        object.__setattr__(self, '_tables_cache', value)
     
     def _make_request(
         self,
@@ -65,8 +101,9 @@ class SQLAgentTool(BaseTool):
         """Make HTTP request to Data API"""
         try:
             with httpx.Client(timeout=30.0) as client:
-                url = f"{self.data_api_url}{endpoint}"
+                url = f"http://localhost:8001{endpoint}"
                 
+                logger.info(f"data_api url:{url}")
                 if method.upper() == "GET":
                     response = client.get(url, params=params)
                 elif method.upper() == "POST":
@@ -117,12 +154,67 @@ class SQLAgentTool(BaseTool):
     def _execute_query(self, query: str) -> Dict[str, Any]:
         """Execute SQL SELECT query"""
         return self._make_request("POST", "/api/query/execute", json_data={"query": query})
-    
     def _analyze_question(self, question: str) -> Dict[str, Any]:
-        """Analyze the question to understand intent"""
-        question_lower = question.lower()
+        """Analyze the question using LLM to understand intent"""
         
-        analysis = {
+        
+        # Initialize LLM
+        llm = ChatOllama(
+            model="gpt-oss:20b-cloud",
+            temperature=0
+        )
+        
+        # Get available tables for context
+        tables = self._get_tables()
+        tables_str = ", ".join(tables) if tables else "No tables available"
+        
+        # Create analysis prompt
+        system_message = SystemMessage(
+            content="""You are a SQL query analyzer. Analyze the user's question and provide a structured analysis in JSON format.
+
+    Your analysis should include:
+    1. question_type: One of ["schema", "aggregation", "retrieval", "general"]
+    - "schema": Questions about database structure, tables, columns
+    - "aggregation": Questions involving counts, sums, averages, max, min
+    - "retrieval": Questions asking to show, list, get, or find specific records
+    - "general": Other general questions
+
+    2. likely_tables: Array of table names that are likely relevant to the question
+    3. needs_schema: Boolean - whether detailed schema information is needed
+    4. needs_sample: Boolean - whether sample data would help answer the question
+    5. keywords: Array of important keywords from the question
+    6. reasoning: Brief explanation of your analysis
+
+    Respond ONLY with valid JSON, no additional text."""
+        )
+        
+        human_message = HumanMessage(
+            content=f"""Question: "{question}"
+
+    Available tables: {tables_str}
+
+    Analyze this question and provide the structured JSON analysis."""
+        )
+        
+        # Get LLM analysis
+        response = llm.invoke([system_message, human_message])
+        
+        # Parse LLM response
+        content = response.content.strip()
+        
+        # Remove markdown code blocks if present
+        if content.startswith("```json"):
+            content = content[7:]
+        if content.startswith("```"):
+            content = content[3:]
+        if content.endswith("```"):
+            content = content[:-3]
+        
+        content = content.strip()
+        analysis = json.loads(content)
+        
+        # Ensure all required fields exist with defaults
+        default_analysis = {
             "needs_schema": False,
             "needs_sample": False,
             "likely_tables": [],
@@ -130,27 +222,14 @@ class SQLAgentTool(BaseTool):
             "keywords": []
         }
         
-        # Check if question asks about structure
-        if any(word in question_lower for word in ["table", "column", "schema", "structure", "what data"]):
-            analysis["needs_schema"] = True
-            analysis["question_type"] = "schema"
+        # Merge with defaults
+        for key, default_value in default_analysis.items():
+            if key not in analysis:
+                analysis[key] = default_value
         
-        # Check if question asks about counts/aggregations
-        if any(word in question_lower for word in ["how many", "count", "total", "sum", "average", "max", "min"]):
-            analysis["question_type"] = "aggregation"
-        
-        # Check if question asks for specific records
-        if any(word in question_lower for word in ["show", "list", "get", "find", "display", "what are"]):
-            analysis["question_type"] = "retrieval"
-            analysis["needs_sample"] = True
-        
-        # Try to identify relevant tables from question
-        tables = self._get_tables()
-        for table in tables:
-            if table.lower() in question_lower or table.lower()[:-1] in question_lower:
-                analysis["likely_tables"].append(table)
-        
+        logger.info(f"LLM Analysis: {analysis}")
         return analysis
+    
     
     def _generate_schema_summary(self) -> str:
         """Generate a human-readable schema summary"""

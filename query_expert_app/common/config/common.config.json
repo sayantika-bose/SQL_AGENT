@@ -15,8 +15,10 @@
   },
   "data_api": {
     "host": "localhost",
-    "port": 8001
+    "port": 8001,
+    "url": "http://localhost:8001"
   },
+
   "ollama": {
     "model": "gpt-oss:20b-cloud",
     "base_url": "http://localhost:11434"
