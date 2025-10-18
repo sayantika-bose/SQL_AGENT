@@ -23,13 +23,6 @@ class ConfigManager:
         value = os.getenv(var_name, default)
         if value is None:
             logger.warning(f"Environment variable {var_name} not found, using default path")
-            # Use default paths based on the variable name
-            if var_name == "COMMON_CONFIG_PATH":
-                return "C:/Users/HP/OneDrive/MitraAI/MITRA.LOG.RCA/log_application/config/common_config.json"
-            elif var_name == "WORKER_CONFIG_PATH":
-                return "C:/Users/HP/OneDrive/MitraAI/MITRA.LOG.RCA/log_application/config/worker_config.json"
-            else:
-                raise ValueError(f"Environment variable {var_name} is required")
         return value
     
     def _load_json_config(self, config_path: Path) -> Dict[str, Any]:
