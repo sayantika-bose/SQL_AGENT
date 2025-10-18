@@ -1,0 +1,19 @@
+[tool.poetry]
+name = "api"
+version = "0.1.0"
+description = "API package for Mitra Log RCA"
+authors = ["Your Name <your.email@example.com>"]
+packages = [{include = "api"}]
+
+[tool.poetry.dependencies]
+python = "^3.12"
+fastapi = "^0.103.2"
+uvicorn = "^0.23.2"
+redis = "^5.0.1"
+pydantic = "^2.4.2"
+celery = "^5.3.4"
+python-dotenv = "^1.0.0"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
