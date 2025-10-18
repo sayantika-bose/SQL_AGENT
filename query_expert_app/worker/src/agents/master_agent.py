@@ -1,68 +1,20 @@
 """
-Task for handling user questions with LangGraph agent and SQL tool.
+Task for handling user questions with LangGraph agent and SQL tools.
 """
-import json
-from typing import Dict, Any, Optional
-import httpx
+from typing import Dict, Any
 import logging
 
 from worker.src.core.celery_app import celery_app, update_task_progress
 from common.enum.task_enum import TaskType
-from common.config.config_manager import get_common_settings
 
 from langchain_ollama import OllamaLLM
-from langchain_core.tools import tool
 from langgraph.graph import StateGraph, MessagesState, START, END
 from langgraph.prebuilt import ToolNode
 from langchain_core.messages import HumanMessage, SystemMessage
 
+from worker.src.tools.sql_tool import SQL_TOOLS
+
 logger = logging.getLogger(__name__)
-
-# Get configuration
-config = get_common_settings()
-DATA_API_URL = getattr(config, 'data_api_url', 'http://localhost:8001')
-
-
-@tool
-def execute_sql_query(query: str) -> str:
-    """
-    Execute a SQL query on the SQLite database.
-    
-    Args:
-        query: SQL query to execute (SELECT, INSERT, UPDATE, DELETE)
-        
-    Returns:
-        JSON string with query results or error message
-    """
-    try:
-        with httpx.Client(timeout=30.0) as client:
-            response = client.post(
-                f"{DATA_API_URL}/api/query/execute",
-                json={"query": query}
-            )
-            response.raise_for_status()
-            return json.dumps(response.json())
-    except Exception as e:
-        logger.error(f"Error executing SQL query: {str(e)}")
-        return json.dumps({"error": str(e), "success": False})
-
-
-@tool
-def get_database_schema() -> str:
-    """
-    Get the schema of all tables in the database.
-    
-    Returns:
-        JSON string with table schemas
-    """
-    try:
-        with httpx.Client(timeout=30.0) as client:
-            response = client.get(f"{DATA_API_URL}/api/schema")
-            response.raise_for_status()
-            return json.dumps(response.json())
-    except Exception as e:
-        logger.error(f"Error getting database schema: {str(e)}")
-        return json.dumps({"error": str(e), "success": False})
 
 
 def get_ollama_model(model_name: str = "gpt-oss:20b-cloud") -> OllamaLLM:
@@ -76,9 +28,8 @@ def create_agent_graph():
     # Initialize LLM
     llm = get_ollama_model()
     
-    # Bind tools to LLM
-    tools = [execute_sql_query, get_database_schema]
-    llm_with_tools = llm.bind_tools(tools)
+    # Bind SQL tools to LLM
+    llm_with_tools = llm.bind_tools(SQL_TOOLS)
     
     # Define the agent function
     def call_model(state: MessagesState):
@@ -91,7 +42,7 @@ def create_agent_graph():
     
     # Add nodes
     workflow.add_node("agent", call_model)
-    workflow.add_node("tools", ToolNode(tools))
+    workflow.add_node("tools", ToolNode(SQL_TOOLS))
     
     # Add edges
     workflow.add_edge(START, "agent")
@@ -133,13 +84,31 @@ def process_user_question(question_data: Dict[str, Any]) -> Dict[str, Any]:
         
         # Prepare messages with system prompt
         system_message = SystemMessage(
-            content="""You are a helpful SQL assistant. You have access to a SQLite database.
-            When users ask questions about data, use the available tools to:
-            1. Check the database schema if needed
-            2. Execute appropriate SQL queries
-            3. Provide clear, helpful answers based on the results
-            
-            Always explain what you're doing and interpret the results for the user."""
+            content="""You are a helpful SQL assistant with read-only access to a SQLite database.
+
+Your capabilities:
+1. List all tables in the database
+2. Get detailed schema information for tables
+3. Execute SELECT queries to retrieve data
+4. Get sample data from tables
+5. Answer questions about the data
+
+Important guidelines:
+- Always check the database schema before writing queries
+- Use the list_tables tool to discover available tables
+- Use get_table_info or get_table_sample to understand table structure
+- Only SELECT queries are allowed - you cannot modify data
+- Break down complex questions into steps
+- Explain your reasoning and the queries you're running
+- Format results in a clear, user-friendly way
+- If you're unsure about a table structure, check it first
+
+When answering:
+1. Understand what the user is asking
+2. Determine what data you need
+3. Check the schema if needed
+4. Write and execute appropriate SQL queries
+5. Interpret and present the results clearly"""
         )
         human_message = HumanMessage(content=question)
         
