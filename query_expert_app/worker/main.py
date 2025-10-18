@@ -4,11 +4,20 @@ Main entry point for the Celery worker.
 import os
 import sys
 import importlib
-from .core.celery_app import celery_app
+from dotenv import load_dotenv,find_dotenv
+load_dotenv(find_dotenv())
+
+from common.config.config_manager import get_config_manager
+
+
+# Get configuration
+config_manager = get_config_manager()
+from worker.src.core.celery_app import celery_app
+
 
 # Import task modules to register them with Celery
 # This approach avoids Windows permission issues with the include parameter
-from  .tasks.tasks import long_running_task
+from  worker.src.agents.master_agent import process_user_question
 
 if __name__ == "__main__":
     # Add arguments for Celery worker

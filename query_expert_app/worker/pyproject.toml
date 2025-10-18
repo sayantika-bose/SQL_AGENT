@@ -1,0 +1,34 @@
+[tool.poetry]
+name = "Query Expert App Worker"
+version = "0.1.0"
+description = "Celery worker for Query Expert App"
+authors = ["Sayantika Bose sayantikabose99@gmail.com"]
+packages = [
+    {include = "worker"}
+]
+repository = "https://github.com/sayantika-bose/SQL_AGENT.git"
+keywords = ["celery", "redis", "worker"]
+
+[tool.poetry.dependencies]
+python = "^3.12"
+celery = "^5.3.4"
+redis = "^5.0.1"
+pydantic = "^2.4.2"
+python-dotenv = "^1.0.0"
+langchain = "^0.3.0"
+langchain-community = "^0.3.0"
+langchain-core = "^0.3.0"
+langchain-ollama = "^0.2.0"
+langgraph = "^0.2.20"
+pymysql = "^1.1.0"
+cryptography = "^46.0.2"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^7.4.0"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.scripts]
+mitra-log-worker = "worker.main:main"

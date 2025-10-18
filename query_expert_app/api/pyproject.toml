@@ -1,8 +1,8 @@
 [tool.poetry]
 name = "api"
 version = "0.1.0"
-description = "API package for Mitra Log RCA"
-authors = ["Your Name <your.email@example.com>"]
+description = "API package for Query Expert App"
+authors = ["Sayantika Bose sayantikabose99@gmail.com"]
 packages = [{include = "api"}]
 
 [tool.poetry.dependencies]

@@ -1,0 +1,25 @@
+{
+  "app_name": "Query Expert App",
+  "environment": "development",
+  "redis": {
+    "host": "localhost",
+    "port": 6379,
+    "db": 0,
+    "password": null,
+    "ssl": false
+  },
+  "logging": {
+    "level": "INFO",
+    "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    "file_path": null
+  },
+  "data_api": {
+    "host": "localhost",
+    "port": 8001
+  },
+  "ollama": {
+    "model": "gpt-oss:20b-cloud",
+    "base_url": "http://localhost:11434"
+  },
+  "debug": true
+}

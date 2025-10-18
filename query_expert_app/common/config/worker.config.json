@@ -1,0 +1,26 @@
+{
+  "celery": {
+    "broker_url": "redis://localhost:6379/0",
+    "result_backend": "redis://localhost:6379/0",
+    "task_serializer": "json",
+    "result_serializer": "json",
+    "accept_content": ["json"],
+    "task_track_started": true,
+    "worker_concurrency": 4,
+    "worker_prefetch_multiplier": 1,
+    "task_time_limit": 3600,
+    "task_soft_time_limit": 3540
+  },
+  "tasks": {
+    "default_timeout": 3600,
+    "max_retries": 3,
+    "retry_delay": 60,
+    "progress_update_interval": 5
+  },
+  "log_analysis": {
+    "batch_size": 100,
+    "analysis_methods": ["pattern_matching", "anomaly_detection", "correlation"],
+    "enable_detailed_logging": true,
+    "max_log_size_mb": 50
+  }
+}

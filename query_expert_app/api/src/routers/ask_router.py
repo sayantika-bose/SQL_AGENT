@@ -16,10 +16,9 @@ logging.basicConfig(
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s"
 )
 logger = logging.getLogger(__name__)
+askRouter = APIRouter(tags=["ask"])
 
-router = APIRouter(tags=["ask"])
-
-@router.post("/ask", response_model=TaskResponse)
+@askRouter.post("/ask", response_model=TaskResponse)
 def ask_question(request: AskInput):
     """
     Submit a question to be answered by the LLM.
