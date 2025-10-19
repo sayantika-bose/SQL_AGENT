@@ -90,7 +90,15 @@ export class ChatComponent implements OnDestroy {
             if (response.result) {
               try {
                 const parsedResult = JSON.parse(response.result);
-                resultContent = parsedResult.response || parsedResult.answer || response.result;
+                if (parsedResult && typeof parsedResult === 'object' && 'response' in parsedResult) {
+                  resultContent = parsedResult.response;
+                } else if (parsedResult && typeof parsedResult === 'object' && 'answer' in parsedResult) {
+                  resultContent = parsedResult.answer;
+                } else if (typeof parsedResult === 'string') {
+                  resultContent = parsedResult;
+                } else {
+                  resultContent = response.result;
+                }
               } catch (e) {
                 resultContent = response.result;
               }

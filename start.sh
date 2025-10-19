@@ -31,7 +31,7 @@ sleep 2
 
 # Start Data API in the background
 echo "Starting Data API on port 8001..."
-(cd "$ROOT_DIR/query_expert_app/data_api" && poetry run python -m data_api.main) &
+(cd "$ROOT_DIR/query_expert_app/data_api" && PYTHONPATH="$ROOT_DIR/query_expert_app:$PYTHONPATH" poetry run python main.py) &
 DATA_API_PID=$!
 
 # Wait for Data API to be ready
@@ -39,7 +39,7 @@ sleep 3
 
 # Start Worker in the background
 echo "Starting Celery Worker..."
-(cd "$ROOT_DIR/query_expert_app/worker" && poetry run python -m worker.main) &
+(cd "$ROOT_DIR/query_expert_app/worker" && PYTHONPATH="$ROOT_DIR/query_expert_app:$PYTHONPATH" poetry run python main.py) &
 WORKER_PID=$!
 
 # Wait for Worker to be ready
@@ -47,7 +47,7 @@ sleep 3
 
 # Start API in the background
 echo "Starting Main API on port 8000..."
-(cd "$ROOT_DIR/query_expert_app/api" && poetry run python -m api.main) &
+(cd "$ROOT_DIR/query_expert_app/api" && PYTHONPATH="$ROOT_DIR/query_expert_app:$PYTHONPATH" poetry run python main.py) &
 API_PID=$!
 
 # Wait for API to be ready

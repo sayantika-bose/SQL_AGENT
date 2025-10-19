@@ -4,15 +4,15 @@
   height: 100vh;
   max-width: 800px;
   margin: 0 auto;
-  background-color: #f5f5f5;
+  background-color: #1a1a2e;
 }
 
 .chat-header {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #0f3460 0%, #16213e 100%);
   color: white;
   padding: 20px;
   text-align: center;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.3);
 }
 
 .chat-header h1 {
@@ -67,20 +67,20 @@
 }
 
 .message-user .message-content {
-  background-color: #667eea;
+  background-color: #1e88e5;
   color: white;
 }
 
 .message-bot .message-content {
-  background-color: white;
-  color: #333;
-  border: 1px solid #e0e0e0;
+  background-color: #2d3748;
+  color: #e2e8f0;
+  border: 1px solid #4a5568;
 }
 
 .message-error .message-content {
-  background-color: #fee;
-  color: #c33;
-  border: 1px solid #fcc;
+  background-color: #742a2a;
+  color: #feb2b2;
+  border: 1px solid #fc8181;
 }
 
 .message-text {
@@ -97,7 +97,7 @@
 .horizontal-loader {
   width: 100%;
   height: 4px;
-  background-color: #f0f0f0;
+  background-color: #1a202c;
   border-radius: 2px;
   overflow: hidden;
   margin-bottom: 10px;
@@ -105,7 +105,7 @@
 
 .loader-bar {
   height: 100%;
-  background: linear-gradient(90deg, #667eea 0%, #764ba2 50%, #667eea 100%);
+  background: linear-gradient(90deg, #1e88e5 0%, #42a5f5 50%, #1e88e5 100%);
   background-size: 200% 100%;
   animation: loading 1.5s ease-in-out infinite;
   border-radius: 2px;
@@ -121,40 +121,42 @@
 }
 
 .progress-text {
-  color: #666;
+  color: #a0aec0;
   font-style: italic;
 }
 
 .chat-input {
   display: flex;
   padding: 20px;
-  background-color: white;
-  border-top: 1px solid #e0e0e0;
+  background-color: #16213e;
+  border-top: 1px solid #2d3748;
   gap: 10px;
 }
 
 .input-field {
   flex: 1;
   padding: 12px 16px;
-  border: 2px solid #e0e0e0;
+  border: 2px solid #4a5568;
   border-radius: 24px;
   font-size: 14px;
   outline: none;
   transition: border-color 0.3s;
+  background-color: #2d3748;
+  color: #e2e8f0;
 }
 
 .input-field:focus {
-  border-color: #667eea;
+  border-color: #1e88e5;
 }
 
 .input-field:disabled {
-  background-color: #f5f5f5;
+  background-color: #1a202c;
   cursor: not-allowed;
 }
 
 .send-button {
   padding: 12px 24px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #1e88e5 0%, #1565c0 100%);
   color: white;
   border: none;
   border-radius: 24px;
@@ -166,7 +168,7 @@
 
 .send-button:hover:not(:disabled) {
   transform: translateY(-2px);
-  box-shadow: 0 4px 8px rgba(102, 126, 234, 0.4);
+  box-shadow: 0 4px 8px rgba(30, 136, 229, 0.4);
 }
 
 .send-button:disabled {
@@ -209,19 +211,21 @@
 }
 
 .markdown-content code {
-  background-color: #f4f4f4;
+  background-color: #1a202c;
   padding: 2px 6px;
   border-radius: 3px;
   font-family: 'Courier New', monospace;
   font-size: 0.9em;
+  color: #90cdf4;
 }
 
 .markdown-content pre {
-  background-color: #f4f4f4;
+  background-color: #1a202c;
   padding: 12px;
   border-radius: 6px;
   overflow-x: auto;
   margin-bottom: 8px;
+  border: 1px solid #4a5568;
 }
 
 .markdown-content pre code {
@@ -237,21 +241,22 @@
 
 .markdown-content th,
 .markdown-content td {
-  border: 1px solid #ddd;
+  border: 1px solid #4a5568;
   padding: 8px;
   text-align: left;
 }
 
 .markdown-content th {
-  background-color: #f8f8f8;
+  background-color: #1a202c;
   font-weight: 600;
+  color: #63b3ed;
 }
 
 .markdown-content blockquote {
-  border-left: 4px solid #667eea;
+  border-left: 4px solid #1e88e5;
   padding-left: 12px;
   margin-left: 0;
-  color: #666;
+  color: #a0aec0;
   font-style: italic;
 }
 
