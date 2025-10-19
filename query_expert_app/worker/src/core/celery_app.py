@@ -75,7 +75,7 @@ def task_prerun_handler(task_id: str, task: Any, *args: Any, **kwargs: Any) -> N
         f"task:{task_id}",
         mapping={
             "status": TASK_STATUS_INPROGRESS,
-            "progress_message": "Task started",
+            "progress_message": "Processing Your Request",
             "result": ""
         }
     )

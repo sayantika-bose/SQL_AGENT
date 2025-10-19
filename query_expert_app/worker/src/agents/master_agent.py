@@ -135,7 +135,7 @@ def process_user_question(self, question_data: Dict[str, Any]) -> Dict[str, Any]
         
         # Invoke the agent
         logger.info(f"Processing question: {question}")
-        update_task_progress(task_id, f"Analyzing question: {question[:50]}...")
+        update_task_progress(task_id, f"Fetching information from DB and analyzing...")
         
         result = agent.invoke({
             "messages": [system_message, human_message]

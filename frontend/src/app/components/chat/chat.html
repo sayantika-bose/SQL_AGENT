@@ -1,12 +1,17 @@
 <div class="chat-container">
   <div class="chat-header">
-    <h1>GenAI Chatbot</h1>
+    <h1>Query Expert</h1>
     <p>Ask questions about your data</p>
   </div>
 
   <div class="chat-messages">
     <div *ngFor="let message of messages" 
          [ngClass]="'message message-' + message.type">
+      <div class="message-avatar">
+        <span *ngIf="message.type === 'user'">U</span>
+        <span *ngIf="message.type === 'bot'">AI</span>
+        <span *ngIf="message.type === 'error'">!</span>
+      </div>
       <div class="message-content">
         <div class="message-text" *ngIf="message.type === 'user' || message.type === 'error'">
           {{ message.content }}
@@ -20,11 +25,16 @@
     </div>
 
     <div *ngIf="isLoading" class="message message-bot">
+      <div class="message-avatar">AI</div>
       <div class="message-content">
-        <div class="horizontal-loader">
-          <div class="loader-bar"></div>
+        <div class="loader-container">
+          <div class="dots-loader">
+            <div class="dot"></div>
+            <div class="dot"></div>
+            <div class="dot"></div>
+          </div>
+          <div class="progress-text">{{ progressMessage }}</div>
         </div>
-        <div class="progress-text">{{ progressMessage }}</div>
       </div>
     </div>
   </div>
@@ -38,10 +48,18 @@
       placeholder="Type your question here..."
       class="input-field">
     <button 
+      *ngIf="!isLoading"
       (click)="sendMessage()" 
-      [disabled]="isLoading || !userInput.trim()"
+      [disabled]="!userInput.trim()"
       class="send-button">
       Send
+    </button>
+    <button 
+      *ngIf="isLoading"
+      (click)="terminateTask()" 
+      class="stop-button">
+      <span class="stop-icon"></span>
+      Stop
     </button>
   </div>
 </div>
