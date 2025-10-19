@@ -11,6 +11,10 @@ cd "$ROOT_DIR"
 # Set Python path
 export PYTHONPATH="$ROOT_DIR:$PYTHONPATH"
 
+# Set configuration paths
+export COMMON_CONFIG_PATH="$ROOT_DIR/query_expert_app/common/config/common.config.json"
+export WORKER_CONFIG_PATH="$ROOT_DIR/query_expert_app/common/config/worker.config.json"
+
 # Function to cleanup on exit
 cleanup() {
     echo "Stopping all services..."
