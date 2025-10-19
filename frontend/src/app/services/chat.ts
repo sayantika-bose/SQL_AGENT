@@ -25,7 +25,7 @@ export interface TaskStatusResponse {
   providedIn: 'root'
 })
 export class Chat {
-  private apiUrl = '/api';
+  private apiUrl = 'http://localhost:8000/api';
 
   constructor(private http: HttpClient) {}
 
@@ -35,7 +35,7 @@ export class Chat {
   }
 
   getTaskStatus(taskId: string): Observable<TaskStatusResponse> {
-    return this.http.get<TaskStatusResponse>(`${this.apiUrl}/task/${taskId}`);
+    return this.http.get<TaskStatusResponse>(`${this.apiUrl}/tasks/${taskId}`);
   }
 
   pollTaskStatus(taskId: string, pollIntervalMs: number = 5000): Observable<TaskStatusResponse> {
