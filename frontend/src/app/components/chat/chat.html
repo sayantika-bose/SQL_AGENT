@@ -8,14 +8,22 @@
     <div *ngFor="let message of messages" 
          [ngClass]="'message message-' + message.type">
       <div class="message-content">
-        <div class="message-text">{{ message.content }}</div>
+        <div class="message-text" *ngIf="message.type === 'user' || message.type === 'error'">
+          {{ message.content }}
+        </div>
+        <div class="message-text markdown-content" 
+             *ngIf="message.type === 'bot' && message.htmlContent"
+             [innerHTML]="message.htmlContent">
+        </div>
         <div class="message-time">{{ message.timestamp | date:'short' }}</div>
       </div>
     </div>
 
     <div *ngIf="isLoading" class="message message-bot">
       <div class="message-content">
-        <div class="loader"></div>
+        <div class="horizontal-loader">
+          <div class="loader-bar"></div>
+        </div>
         <div class="progress-text">{{ progressMessage }}</div>
       </div>
     </div>
