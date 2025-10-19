@@ -76,64 +76,82 @@ export class ChatComponent implements OnDestroy {
   }
 
   private pollForResult(taskId: string) {
-    this.chatService.pollTaskStatus(taskId, 5000)
-      .pipe(takeUntil(this.destroy$))
-      .subscribe({
-        next: (response) => {
-          this.progressMessage = response.progress_message || 'Processing...';
+  this.chatService.pollTaskStatus(taskId, 5000)
+    .pipe(takeUntil(this.destroy$))
+    .subscribe({
+      next: (response) => {
+        this.progressMessage = response.progress_message || 'Processing...';
 
-          if (response.status === 'SUCCESS') {
-            this.isLoading = false;
-            this.progressMessage = '';
-            
-            let resultContent = 'Task completed successfully.';
-            if (response.result) {
-              try {
-                const parsedResult = JSON.parse(response.result);
-                if (parsedResult && typeof parsedResult === 'object' && 'response' in parsedResult) {
-                  resultContent = parsedResult.response;
-                } else if (parsedResult && typeof parsedResult === 'object' && 'answer' in parsedResult) {
-                  resultContent = parsedResult.answer;
-                } else if (typeof parsedResult === 'string') {
-                  resultContent = parsedResult;
-                } else {
-                  resultContent = response.result;
-                }
-              } catch (e) {
+        if (response.status === 'SUCCESS') {
+          this.isLoading = false;
+          this.progressMessage = '';
+
+          let resultContent = 'Task completed successfully.';
+
+          if (response.result) {
+            try {
+              // 🧠 Step 1: Convert single quotes to double quotes, fix booleans
+              const fixedResult = response.result
+                .replace(/'/g, '"')
+                .replace(/\bTrue\b/g, 'true')
+                .replace(/\bFalse\b/g, 'false')
+                .replace(/\bNone\b/g, 'null');
+
+              // 🧠 Step 2: Try to parse as JSON
+              const parsedResult = JSON.parse(fixedResult);
+
+              // 🧠 Step 3: Extract response content if available
+              if (parsedResult && typeof parsedResult === 'object' && 'response' in parsedResult) {
+                resultContent = parsedResult.response;
+              } else if (parsedResult && typeof parsedResult === 'object' && 'answer' in parsedResult) {
+                resultContent = parsedResult.answer;
+              } else if (typeof parsedResult === 'string') {
+                resultContent = parsedResult;
+              } else {
                 resultContent = response.result;
               }
+            } catch (e) {
+              console.warn('JSON parse failed, using raw result:', e);
+              resultContent = response.result;
             }
-
-            const htmlContent = this.sanitizer.sanitize(1, marked.parse(resultContent) as string);
-            
-            this.messages.push({
-              type: 'bot',
-              content: resultContent,
-              htmlContent: this.sanitizer.bypassSecurityTrustHtml(htmlContent || resultContent),
-              timestamp: new Date()
-            });
-          } else if (response.status === 'FAILURE') {
-            this.isLoading = false;
-            this.progressMessage = '';
-            this.messages.push({
-              type: 'error',
-              content: response.error || 'Task failed.',
-              timestamp: new Date()
-            });
           }
-        },
-        error: (error) => {
-          console.error('Error polling task status:', error);
+
+          // 🧩 Step 4: Render Markdown properly with sanitizer
+          const htmlContent = marked.parse(resultContent) as string;
+          const safeHtml = this.sanitizer.bypassSecurityTrustHtml(htmlContent);
+
+       
+
+          // 🧾 Step 5: Push formatted message
+          this.messages.push({
+            type: 'bot',
+            content: resultContent,
+            htmlContent: safeHtml,
+            timestamp: new Date()
+          });
+
+        } else if (response.status === 'FAILURE') {
           this.isLoading = false;
           this.progressMessage = '';
           this.messages.push({
             type: 'error',
-            content: 'Error getting response. Please try again.',
+            content: response.error || 'Task failed.',
             timestamp: new Date()
           });
         }
-      });
-  }
+      },
+      error: (error) => {
+        console.error('Error polling task status:', error);
+        this.isLoading = false;
+        this.progressMessage = '';
+        this.messages.push({
+          type: 'error',
+          content: 'Error getting response. Please try again.',
+          timestamp: new Date()
+        });
+      }
+    });
+}
 
   ngOnDestroy() {
     this.destroy$.next();
