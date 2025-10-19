@@ -1,0 +1,39 @@
+<div class="chat-container">
+  <div class="chat-header">
+    <h1>GenAI Chatbot</h1>
+    <p>Ask questions about your data</p>
+  </div>
+
+  <div class="chat-messages">
+    <div *ngFor="let message of messages" 
+         [ngClass]="'message message-' + message.type">
+      <div class="message-content">
+        <div class="message-text">{{ message.content }}</div>
+        <div class="message-time">{{ message.timestamp | date:'short' }}</div>
+      </div>
+    </div>
+
+    <div *ngIf="isLoading" class="message message-bot">
+      <div class="message-content">
+        <div class="loader"></div>
+        <div class="progress-text">{{ progressMessage }}</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="chat-input">
+    <input 
+      type="text" 
+      [(ngModel)]="userInput"
+      (keyup.enter)="sendMessage()"
+      [disabled]="isLoading"
+      placeholder="Type your question here..."
+      class="input-field">
+    <button 
+      (click)="sendMessage()" 
+      [disabled]="isLoading || !userInput.trim()"
+      class="send-button">
+      Send
+    </button>
+  </div>
+</div>
