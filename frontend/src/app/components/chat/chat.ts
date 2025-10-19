@@ -1,13 +1,16 @@
 import { Component, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { Chat } from '../../services/chat';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
+import { marked } from 'marked';
 
 interface Message {
   type: 'user' | 'bot' | 'error';
   content: string;
+  htmlContent?: SafeHtml;
   timestamp: Date;
 }
 
@@ -24,7 +27,15 @@ export class ChatComponent implements OnDestroy {
   progressMessage: string = '';
   private destroy$ = new Subject<void>();
 
-  constructor(private chatService: Chat) {}
+  constructor(
+    private chatService: Chat,
+    private sanitizer: DomSanitizer
+  ) {
+    marked.setOptions({
+      breaks: true,
+      gfm: true
+    });
+  }
 
   sendMessage() {
     if (!this.userInput.trim() || this.isLoading) {
@@ -85,9 +96,12 @@ export class ChatComponent implements OnDestroy {
               }
             }
 
+            const htmlContent = this.sanitizer.sanitize(1, marked.parse(resultContent) as string);
+            
             this.messages.push({
               type: 'bot',
               content: resultContent,
+              htmlContent: this.sanitizer.bypassSecurityTrustHtml(htmlContent || resultContent),
               timestamp: new Date()
             });
           } else if (response.status === 'FAILURE') {
