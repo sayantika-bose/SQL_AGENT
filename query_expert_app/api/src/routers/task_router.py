@@ -19,6 +19,14 @@ def get_task_status(task_id: str):
     Get the status of a task.
     
     This endpoint retrieves task status from Redis.
+    
+    Returns:
+        TaskStatusResponse with:
+            - task_id: The task identifier
+            - status: One of "INPROGRESS", "SUCCESS", "FAILURE", "NOT_FOUND"
+            - progress_message: Descriptive message about current task state
+            - result: Task result (only present on SUCCESS)
+            - error: Error message (only present on FAILURE)
     """
     # Get task info from Redis
     task_info = get_task_info(task_id)
@@ -32,7 +40,7 @@ def get_task_status(task_id: str):
     return TaskStatusResponse(
         task_id=task_id,
         status=task_info.get("status", "PENDING"),
-        progress=task_info.get("progress", 0),
+        progress_message=task_info.get("progress_message", "Processing"),
         result=result,
-        message=task_info.get("message")
+        error=task_info.get("error")
     )

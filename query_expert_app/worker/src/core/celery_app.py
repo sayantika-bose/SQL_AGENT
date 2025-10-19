@@ -3,7 +3,7 @@ Celery application configuration with Redis broker.
 Completely decoupled from API components.
 """
 from celery import Celery
-from celery.signals import task_prerun, task_postrun
+from celery.signals import task_prerun, task_postrun, task_failure
 import redis
 import os
 from typing import Dict, Optional, Any, Union
@@ -54,12 +54,18 @@ celery_app.conf.update(
     }
 )
 
+# Task status constants
+TASK_STATUS_INPROGRESS = "INPROGRESS"
+TASK_STATUS_SUCCESS = "SUCCESS"
+TASK_STATUS_FAILURE = "FAILURE"
+TASK_STATUS_NOT_FOUND = "NOT_FOUND"
+
 # Task progress tracking with Redis
 @task_prerun.connect
 def task_prerun_handler(task_id: str, task: Any, *args: Any, **kwargs: Any) -> None:
     """
     Handler called before task execution.
-    Updates Redis with task status.
+    Updates Redis with INPROGRESS status.
     
     Args:
         task_id: The Celery task ID
@@ -68,9 +74,9 @@ def task_prerun_handler(task_id: str, task: Any, *args: Any, **kwargs: Any) -> N
     redis_client.hset(
         f"task:{task_id}",
         mapping={
-            "status": "STARTED",
-            "progress": 0,
-            "result": ""  # Empty string instead of None
+            "status": TASK_STATUS_INPROGRESS,
+            "progress_message": "Task started",
+            "result": ""
         }
     )
     # Set expiration to avoid Redis memory issues (24 hours)
@@ -80,7 +86,7 @@ def task_prerun_handler(task_id: str, task: Any, *args: Any, **kwargs: Any) -> N
 def task_postrun_handler(task_id: str, task: Any, retval: Any, state: str, *args: Any, **kwargs: Any) -> None:
     """
     Handler called after task execution.
-    Updates Redis with task completion status and result.
+    Updates Redis with SUCCESS status and result.
     
     Args:
         task_id: The Celery task ID
@@ -91,28 +97,89 @@ def task_postrun_handler(task_id: str, task: Any, retval: Any, state: str, *args
     redis_client.hset(
         f"task:{task_id}",
         mapping={
-            "status": state,
-            "progress": 100,
-            "result": str(retval) if retval is not None else None
+            "status": TASK_STATUS_SUCCESS,
+            "progress_message": "Task completed successfully",
+            "result": str(retval) if retval is not None else ""
         }
     )
 
-def update_task_progress(task_id: str, progress: int, message: Optional[str] = None) -> None:
+@task_failure.connect
+def task_failure_handler(task_id: str, exception: Exception, *args: Any, **kwargs: Any) -> None:
     """
-    Update task progress in Redis.
+    Handler called when task fails.
+    Updates Redis with FAILURE status and error details.
+    
+    Args:
+        task_id: The Celery task ID
+        exception: The exception that caused the failure
+    """
+    redis_client.hset(
+        f"task:{task_id}",
+        mapping={
+            "status": TASK_STATUS_FAILURE,
+            "progress_message": "Task failed",
+            "result": "",
+            "error": str(exception)
+        }
+    )
+
+def update_task_progress(task_id: str, message: str) -> None:
+    """
+    Update task progress message in Redis while maintaining INPROGRESS status.
     
     Args:
         task_id: The task ID
-        progress: Progress percentage (0-100)
-        message: Optional status message
-    """
-    update_data: Dict[str, Union[int, str]] = {
-        "progress": progress
-    }
-    if message:
-        update_data["message"] = message
+        message: Progress message describing current subtask
     
-    redis_client.hset(f"task:{task_id}", mapping=update_data)
+    Example:
+        update_task_progress(task_id, "Processing user data")
+        update_task_progress(task_id, "Generating reports")
+        update_task_progress(task_id, "Sending notifications")
+    """
+    redis_client.hset(
+        f"task:{task_id}",
+        mapping={
+            "status": TASK_STATUS_INPROGRESS,
+            "progress_message": message
+        }
+    )
+
+def mark_task_success(task_id: str, result: Any = None, message: Optional[str] = None) -> None:
+    """
+    Manually mark a task as SUCCESS.
+    
+    Args:
+        task_id: The task ID
+        result: The task result
+        message: Optional success message
+    """
+    redis_client.hset(
+        f"task:{task_id}",
+        mapping={
+            "status": TASK_STATUS_SUCCESS,
+            "progress_message": message or "Task completed successfully",
+            "result": str(result) if result is not None else ""
+        }
+    )
+
+def mark_task_failure(task_id: str, error: str, message: Optional[str] = None) -> None:
+    """
+    Manually mark a task as FAILURE.
+    
+    Args:
+        task_id: The task ID
+        error: The error message
+        message: Optional failure message
+    """
+    redis_client.hset(
+        f"task:{task_id}",
+        mapping={
+            "status": TASK_STATUS_FAILURE,
+            "progress_message": message or "Task failed",
+            "result": "",
+            "error": error
+        }
+    )
 
 def get_task_info(task_id: str) -> Dict[str, Any]:
     """
@@ -122,17 +189,13 @@ def get_task_info(task_id: str) -> Dict[str, Any]:
         task_id: The task ID
         
     Returns:
-        Task information including status and progress
+        Task information including status and progress_message
     """
     task_info = redis_client.hgetall(f"task:{task_id}")
     if not task_info:
-        return {"status": "NOT_FOUND", "progress": 0}
-    
-    # Convert progress to int if it exists
-    if "progress" in task_info:
-        try:
-            task_info["progress"] = int(task_info["progress"])
-        except (ValueError, TypeError):
-            pass
+        return {
+            "status": TASK_STATUS_NOT_FOUND,
+            "progress_message": "Task not found"
+        }
             
     return task_info

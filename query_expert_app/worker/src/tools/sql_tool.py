@@ -13,6 +13,7 @@ from langchain_core.messages import SystemMessage, HumanMessage
         
 
 from common.config.config_manager import get_common_settings
+from worker.src.utils.prompt_loader import load_prompt
 
 logger = logging.getLogger(__name__)
 
@@ -154,9 +155,9 @@ class SQLAgentTool(BaseTool):
     def _execute_query(self, query: str) -> Dict[str, Any]:
         """Execute SQL SELECT query"""
         return self._make_request("POST", "/api/query/execute", json_data={"query": query})
+    
     def _analyze_question(self, question: str) -> Dict[str, Any]:
         """Analyze the question using LLM to understand intent"""
-        
         
         # Initialize LLM
         llm = ChatOllama(
@@ -168,33 +169,16 @@ class SQLAgentTool(BaseTool):
         tables = self._get_tables()
         tables_str = ", ".join(tables) if tables else "No tables available"
         
-        # Create analysis prompt
-        system_message = SystemMessage(
-            content="""You are a SQL query analyzer. Analyze the user's question and provide a structured analysis in JSON format.
-
-    Your analysis should include:
-    1. question_type: One of ["schema", "aggregation", "retrieval", "general"]
-    - "schema": Questions about database structure, tables, columns
-    - "aggregation": Questions involving counts, sums, averages, max, min
-    - "retrieval": Questions asking to show, list, get, or find specific records
-    - "general": Other general questions
-
-    2. likely_tables: Array of table names that are likely relevant to the question
-    3. needs_schema: Boolean - whether detailed schema information is needed
-    4. needs_sample: Boolean - whether sample data would help answer the question
-    5. keywords: Array of important keywords from the question
-    6. reasoning: Brief explanation of your analysis
-
-    Respond ONLY with valid JSON, no additional text."""
+        # Load prompts from Jinja2 templates
+        system_prompt = load_prompt("sql_analyzer_system.j2")
+        human_prompt = load_prompt(
+            "sql_analyzer_human.j2",
+            question=question,
+            tables_str=tables_str
         )
         
-        human_message = HumanMessage(
-            content=f"""Question: "{question}"
-
-    Available tables: {tables_str}
-
-    Analyze this question and provide the structured JSON analysis."""
-        )
+        system_message = SystemMessage(content=system_prompt)
+        human_message = HumanMessage(content=human_prompt)
         
         # Get LLM analysis
         response = llm.invoke([system_message, human_message])

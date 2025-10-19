@@ -13,6 +13,7 @@ from langgraph.prebuilt import ToolNode
 from langchain_core.messages import HumanMessage, SystemMessage
 
 from worker.src.tools.sql_tool import SQLAgentTool
+from worker.src.utils.prompt_loader import load_prompt
 
 logger = logging.getLogger(__name__)
 
@@ -80,8 +81,8 @@ def create_agent_graph():
     return workflow.compile()
 
 
-@celery_app.task(name=TaskType.ASK_QUESTION)
-def process_user_question(question_data: Dict[str, Any]) -> Dict[str, Any]:
+@celery_app.task(name=TaskType.ASK_QUESTION, bind=True)
+def process_user_question(self, question_data: Dict[str, Any]) -> Dict[str, Any]:
     """
     Process a user question using LangGraph agent with SQL Agent Tool.
     
@@ -109,94 +110,44 @@ def process_user_question(question_data: Dict[str, Any]) -> Dict[str, Any]:
         >>> process_user_question({"question": "Show me all completed orders"})
     """
     question = question_data.get("question", "")
+    task_id = self.request.id
+    
     if not question:
         return {"error": "No question provided", "success": False}
     
-    update_task_progress(10, "Received question, initializing agent")
+    update_task_progress(task_id, "Received question, initializing agent")
     
     try:
         # Create the agent graph
-        agent = create_agent_graph()
-        update_task_progress(30, "Agent initialized with SQL Agent Tool")
+        logger.info("Initializing LangGraph agent with SQL Agent Tool")
+        update_task_progress(task_id, "Creating LangGraph agent with SQL capabilities")
         
-       # Prepare messages with system prompt
-        system_message = SystemMessage(
-            content="""You are a highly intelligent SQL assistant specialized in analyzing financial and operational data from the database.
-
-YOUR CORE CAPABILITIES:
-- Answer questions about database structure, schema, and available data
-- Execute read-only SQL queries to retrieve and analyze data
-- Provide insights on financial metrics, operational statistics, and business data
-- Handle data aggregations, trends, and complex analytical queries
-
-YOUR TOOL:
-You have access to the 'sql_database_agent' tool which can:
-- Explore database schema and table structures
-- Generate and execute SELECT queries
-- Retrieve, filter, and aggregate data
-- Provide formatted results with clear explanations
-
-IMPORTANT RULES:
-
-1. GREETINGS & CASUAL CONVERSATION:
-   - Respond directly to greetings (hello, hi, how are you, etc.) WITHOUT using the tool
-   - Be friendly and professional in casual interactions
-   - After greeting, guide users on what you can help with
-
-2. DATABASE & DATA QUESTIONS:
-   - ALWAYS use the sql_database_agent tool for ANY question about:
-     * Database structure (tables, columns, schema)
-     * Data retrieval (show, list, get, find data)
-     * Counts, statistics, aggregations
-     * Financial analysis, revenue, orders, transactions
-     * Operational metrics (users, products, inventory)
-     * Trends, comparisons, rankings
-   - Pass the user's question directly to the tool
-   - Trust the tool's analysis and present results clearly
-
-3. OFF-TOPIC QUESTIONS:
-   - POLITELY DECLINE questions about:
-     * General knowledge (weather, news, history)
-     * Technical advice unrelated to databases
-     * Personal opinions or recommendations
-     * Topics outside database/data analysis
-   - Explain: "I'm specialized in analyzing database and financial data. I can only help with questions about the data in our database."
-
-4. RESPONSE GUIDELINES:
-   - For greetings: Respond warmly and briefly explain your capabilities
-   - For data questions: Use the tool, then explain results in clear, business-friendly language
-   - For off-topic: Politely redirect to your specialized area
-   - Always be professional, concise, and helpful
-
-EXAMPLES:
-
-User: "Hello!"
-You: "Hello! I'm your SQL database assistant. I specialize in analyzing financial and operational data. I can help you explore database tables, retrieve specific data, calculate metrics, and provide insights. What would you like to know about the data?"
-
-User: "How many orders were placed last month?"
-You: [Use sql_database_agent tool with the question, then present results]
-
-User: "What's the weather today?"
-You: "I'm specialized in analyzing database and financial data. I can only help with questions about the data in our database, such as sales figures, customer information, inventory levels, etc. Is there any data analysis I can help you with?"
-
-User: "Show me the top 5 customers by revenue"
-You: [Use sql_database_agent tool with the question, then present results with insights]
-
-Remember: Your expertise is DATABASE ANALYSIS. Use your tool for data questions, respond directly to greetings, and politely decline everything else."""
-        )
+        agent = create_agent_graph()
+        update_task_progress(task_id, "Agent initialized successfully")
+        
+        # Prepare messages with system prompt
+        update_task_progress(task_id, "Preparing system prompt and context")
+        
+        # Load system prompt from Jinja2 template
+        system_prompt = load_prompt("agent_system.j2")
+        system_message = SystemMessage(content=system_prompt)
         human_message = HumanMessage(content=question)
         
         # Invoke the agent
         logger.info(f"Processing question: {question}")
+        update_task_progress(task_id, f"Analyzing question: {question[:50]}...")
+        
         result = agent.invoke({
             "messages": [system_message, human_message]
         })
         
-        update_task_progress(90, "Question processed, preparing response")
+        update_task_progress(task_id, "Question processed, extracting response")
         
         # Extract the final response
         messages = result["messages"]
         final_response = messages[-1].content if messages else "No response generated"
+        
+        update_task_progress(task_id, "Formatting final response")
         
         response_data = {
             "question": question,
@@ -205,13 +156,13 @@ Remember: Your expertise is DATABASE ANALYSIS. Use your tool for data questions,
             "message_count": len(messages)
         }
         
-        update_task_progress(100, "Response ready")
         logger.info(f"Successfully processed question with {len(messages)} messages")
         return response_data
         
     except Exception as e:
         logger.error(f"Error processing question: {str(e)}", exc_info=True)
         error_message = f"Error processing question: {str(e)}"
+        update_task_progress(task_id, f"Error occurred: {str(e)[:100]}")
         return {
             "error": error_message,
             "success": False
