@@ -1,3 +1,4 @@
+
 # SQL Agent - GenAI Chatbot Application
 
 ## Overview
@@ -35,122 +36,115 @@ This is a full-stack application that provides a conversational AI interface for
 ### Technology Stack
 - **Frontend**: Angular 18, TypeScript, RxJS
 - **Backend**: Python 3.12, FastAPI, Poetry
-- **Worker**: Celery, LangChain, Ollama (LLM)
+- **Worker**: Celery, LangChain, LangGraph, Ollama (LLM)
 - **Database**: SQLite
 - **Message Broker**: Redis
 
-## Recent Changes
-- **2025-10-19**: Initial setup and configuration for Replit environment
-  - Installed Python 3.12 and Node.js 20
-  - Installed all Python dependencies using Poetry
-  - Created Angular frontend with chatbot UI
-  - Configured proxy for API communication
-  - Created startup script to run all services
-  - Created sample SQLite database for testing
+## Running the Application (Local Setup with Poetry)
 
-## Project Structure
-```
-.
-├── frontend/                 # Angular frontend application
-│   ├── src/
-│   │   ├── app/
-│   │   │   ├── components/chat/  # Chatbot component
-│   │   │   ├── services/         # HTTP services
-│   │   │   └── ...
-│   ├── proxy.conf.json      # API proxy configuration
-│   └── angular.json         # Angular configuration
-├── query_expert_app/        # Python backend
-│   ├── api/                 # Main API
-│   ├── data_api/            # Database API
-│   ├── worker/              # Celery worker
-│   └── common/              # Shared configuration
-├── data/                    # Database files
-│   └── database.db         # SQLite database
-├── start.sh                # Startup script for all services
-└── replit.md               # This file
+### Prerequisites
+- Python 3.12+
+- Node.js 20+
+- Poetry
+- Redis (running in Docker or locally)
+- Ollama (optional, for LLM features)
+
+### Steps
+
+#### 1. Run Redis
+Ensure Redis is running before starting any backend service:
+```bash
+docker run -d -p 6379:6379 redis
 ```
 
-## API Endpoints
+#### 2. Run the Data API
+Before running Data API, make sure the database file is in place:
+```
+query_expert_app/data_api/src/db/financial_data.db
+```
 
-### Main API (Port 8000)
-- `POST /api/ask` - Submit a question
-  - Request: `{ "question": "your question here" }`
-  - Response: `{ "task_id": "...", "status": "INPROGRESS", "message": "..." }`
+Then open a terminal in the `query_expert_app/data_api/` directory and run:
+```bash
+poetry lock
+poetry install
+$env:PYTHONPATH="Your_Path\SQL_AGENT\query_expert_app"
+poetry run python main.py
+```
 
-- `GET /api/task/{task_id}` - Get task status
-  - Response: `{ "task_id": "...", "status": "SUCCESS|INPROGRESS|FAILURE", "progress_message": "...", "result": "...", "error": null }`
+#### 3. Run the Main API
+Open a terminal in the `query_expert_app/api/` directory and run:
+```bash
+poetry lock
+poetry install
+$env:PYTHONPATH="Your_Path\SQL_AGENT\query_expert_app"
+poetry run python main.py
+```
 
-### Data API (Port 8001)
-- `GET /api/schema/` - Get database schema
-- `POST /api/query/execute` - Execute SQL query
-- `GET /api/table/{table_name}` - Get table data
+#### 4. Run the Celery Worker
+Open a terminal in the `query_expert_app/worker/` directory and run:
+```bash
+poetry lock
+poetry install
+$env:PYTHONPATH="Your_Path\SQL_AGENT\query_expert_app"
+poetry run celery -A worker.tasks worker --loglevel=info
+```
 
-## Running the Application
+#### 5. Run the Angular Frontend
+In the `frontend/` directory, execute:
+```bash
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+npm install
+npm start
+```
+Make sure Node.js is installed and accessible in PATH.
 
-The application starts all services automatically through the configured workflow:
-1. Redis server
-2. Data API (port 8001)
-3. Celery Worker
-4. Main API (port 8000)
-5. Angular Frontend (port 5000)
+The frontend will be available at **http://localhost:5000**.
 
-All services run in the background, and the frontend is accessible on port 5000.
+## Database Schema
 
-## Configuration
+The application uses a relational **SQLite** database located at `query_expert_app/data_api/src/db/financial_data.db`.
 
-### Backend Configuration
-Configuration is managed through JSON files in `query_expert_app/common/config/`:
-- `common.config.json` - Application-wide settings
-- `worker.config.json` - Celery worker settings
+### Tables Overview
+The database contains several related tables that store financial and transactional information:
+- **Users** – Stores user information such as `user_id`, `name`, and `email`.
+- **Orders** – Stores purchase order details, each linked to a user via `user_id`.
+- **Products** – Contains product details including `product_id`, `name`, and `price`.
+- **FinancialTransactions** – Records transaction data, linking users and orders.
 
-### Frontend Configuration
-- `angular.json` - Build and serve configuration
-- `proxy.conf.json` - API proxy settings
+### Relationships
+- **Users ↔ Orders**: One-to-Many (one user can have multiple orders)
+- **Orders ↔ FinancialTransactions**: One-to-Many (one order can have multiple transactions)
+- **Products ↔ Orders**: Many-to-Many through an intermediate join table (if implemented)
 
-## Development Notes
+This relational design ensures data normalization, reducing redundancy and improving query performance for analytics and reporting.
 
-### Angular Polling Pattern
-The frontend uses RxJS operators to poll the task status endpoint:
-- `timer(0, 5000)` - Poll every 5 seconds
-- `switchMap` - Switch to new request on each interval
-- `takeWhile` - Stop polling when status is not INPROGRESS
-- `timeout(300000)` - 5-minute timeout
+## Design Choices
 
-### Backend Task Flow
-1. User submits question via `/api/ask`
-2. API creates Celery task and returns task_id
-3. Frontend polls `/api/task/{task_id}` every 5 seconds
-4. Worker processes task using LangChain agent
-5. Worker updates task status in Redis
-6. Frontend receives final result when status changes to SUCCESS/FAILURE
+### Architecture
+The project follows a **task-based architecture** using **Celery workers** for asynchronous processing. This allows heavy LLM inference and SQL query analysis tasks to run in the background without blocking API responses.
 
-## User Preferences
-- None specified yet
+Key reasons for this architecture:
+- **Scalability**: Celery enables distributed task processing, allowing horizontal scaling by adding more workers.
+- **Responsiveness**: The FastAPI service remains lightweight and responsive since long-running tasks are offloaded to the worker.
+- **Reliability**: Redis acts as the message broker, ensuring task persistence and fault tolerance.
 
-## Dependencies
+### Model and Prompting Strategy
+The **LangChain + Ollama** stack is used for natural language query interpretation. The LLM is prompted with structured context about the database schema to generate accurate SQL queries from user questions.
 
-### Python Dependencies (Poetry)
-See individual `pyproject.toml` files in:
-- `query_expert_app/api/pyproject.toml`
-- `query_expert_app/data_api/pyproject.toml`
-- `query_expert_app/worker/pyproject.toml`
+Prompt structure example:
+```
+You are an expert SQL assistant. Given the database schema and user question, generate the correct SQL query.
+Schema: {schema_description}
+Question: {user_input}
+```
+This guided prompting ensures the model generates contextually relevant SQL commands.
 
-### Node.js Dependencies
-See `frontend/package.json`
+### Why This Design
+- The modular separation between APIs, worker, and frontend ensures clean architecture.
+- Using **Poetry** provides isolated environments for each backend service, simplifying dependency management.
+- The **frontend polling pattern** (using RxJS) efficiently checks task status without WebSocket overhead.
 
-## Troubleshooting
-
-### If services don't start
-1. Check that Redis is running: `redis-cli ping`
-2. Check Python dependencies are installed in each component
-3. Check Angular dependencies: `cd frontend && npm install`
-
-### If frontend can't connect to backend
-1. Verify proxy configuration in `frontend/proxy.conf.json`
-2. Check that API is running on port 8000
-3. Check browser console for CORS errors
-
-### If worker doesn't process tasks
-1. Check Redis connection
-2. Verify Ollama is available (if using LLM features)
-3. Check worker logs for errors
+## Limitations
+- Currently limited to SQLite; scaling to PostgreSQL or MySQL may require schema migration.
+- Ollama model performance depends on system resources (RAM/VRAM).
+- No authentication layer yet for API endpoints (planned enhancement).
