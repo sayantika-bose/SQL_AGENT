@@ -161,7 +161,7 @@ class SQLAgentTool(BaseTool):
         
         # Initialize LLM
         llm = ChatOllama(
-            model="gpt-oss:20b-cloud",
+            model="gpt-oss:120b-cloud",
             temperature=0
         )
         

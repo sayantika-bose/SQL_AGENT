@@ -5,22 +5,56 @@
   </div>
 
   <div class="chat-messages">
-    <div *ngFor="let message of messages" 
+    <div *ngFor="let message of messages; let i = index" 
          [ngClass]="'message message-' + message.type">
       <div class="message-avatar">
         <span *ngIf="message.type === 'user'">U</span>
         <span *ngIf="message.type === 'bot'">AI</span>
         <span *ngIf="message.type === 'error'">!</span>
       </div>
-      <div class="message-content">
-        <div class="message-text" *ngIf="message.type === 'user' || message.type === 'error'">
-          {{ message.content }}
+
+      <!-- User Messages with wrapper -->
+      <div class="message-wrapper" *ngIf="message.type === 'user'">
+        <div class="message-content">
+          <div class="message-text">
+            {{ message.content }}
+          </div>
         </div>
-        <div class="message-text markdown-content" 
-             *ngIf="message.type === 'bot' && message.htmlContent"
-             [innerHTML]="message.htmlContent">
+        <div class="message-footer">
+          <span class="message-time">{{ message.timestamp | date:'short' }}</span>
         </div>
-        <div class="message-time">{{ message.timestamp | date:'short' }}</div>
+      </div>
+
+      <!-- Error Messages with wrapper -->
+      <div class="message-wrapper" *ngIf="message.type === 'error'">
+        <div class="message-content">
+          <div class="message-text">
+            {{ message.content }}
+          </div>
+        </div>
+        <div class="message-footer">
+          <span class="message-time">{{ message.timestamp | date:'short' }}</span>
+        </div>
+      </div>
+      
+      <!-- Bot Messages with wrapper -->
+      <div class="message-wrapper" *ngIf="message.type === 'bot'">
+        <div class="message-content">
+          <div class="message-text" 
+               [innerHTML]="message.htmlContent">
+          </div>
+        </div>
+        <div class="message-footer">
+          <span class="message-time">{{ message.timestamp | date:'short' }}</span>
+          <button 
+            *ngIf="message.userQuestion"
+            (click)="regenerateResponse(i)"
+            [disabled]="isLoading"
+            class="regenerate-button"
+            title="Regenerate response">
+            <span class="regenerate-icon">↻</span>
+          </button>
+        </div>
       </div>
     </div>
 

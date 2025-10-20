@@ -87,18 +87,38 @@
   order: 1;
 }
 
+.message-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: 100%;
+}
+
+.message-user .message-wrapper {
+  order: 1;
+  align-items: flex-end;
+}
+
+.message-bot .message-wrapper,
+.message-error .message-wrapper {
+  order: 2;
+  align-items: flex-start;
+}
+
 .message-content {
   padding: 16px 20px;
   border-radius: 12px;
   box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-  max-width: 85%;
+  position: relative;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
 }
 
 .message-user .message-content {
   background-color: #1e88e5;
   color: white;
   max-width: 60%;
-  order: 1;
+  min-width: 120px;
 }
 
 .message-bot .message-content {
@@ -106,7 +126,6 @@
   color: #e2e8f0;
   border: 1px solid #4a5568;
   max-width: 100%;
-  order: 2;
 }
 
 .message-error .message-content {
@@ -114,7 +133,6 @@
   color: #feb2b2;
   border: 1px solid #fc8181;
   max-width: 70%;
-  order: 2;
 }
 
 .message-text {
@@ -123,11 +141,54 @@
   line-height: 1.6;
 }
 
+.message-footer {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-left: 4px;
+}
+
+.message-user .message-footer {
+  justify-content: flex-end;
+  padding-right: 4px;
+  padding-left: 0;
+}
+
 .message-time {
   font-size: 11px;
   opacity: 0.7;
-  margin-top: 8px;
-  display: block;
+  color: #a0aec0;
+}
+
+.regenerate-button {
+  width: 32px;
+  height: 32px;
+  background: transparent;
+  color: #a0aec0;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 16px;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+.regenerate-button:hover:not(:disabled) {
+  color: #63b3ed;
+  background-color: rgba(99, 179, 237, 0.1);
+  transform: rotate(180deg);
+}
+
+.regenerate-button:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.regenerate-icon {
+  font-size: 18px;
 }
 
 /* Enhanced Loader */
@@ -257,223 +318,6 @@
   opacity: 0.5;
   cursor: not-allowed;
   transform: none;
-}
-
-/* Enhanced Markdown Styling */
-.markdown-content {
-  line-height: 1.8;
-  font-size: 15px;
-}
-
-.markdown-content > *:first-child {
-  margin-top: 0 !important;
-}
-
-.markdown-content > *:last-child {
-  margin-bottom: 0 !important;
-}
-
-.markdown-content h1,
-.markdown-content h2,
-.markdown-content h3,
-.markdown-content h4,
-.markdown-content h5,
-.markdown-content h6 {
-  margin-top: 24px;
-  margin-bottom: 12px;
-  font-weight: 600;
-  color: #63b3ed;
-  line-height: 1.3;
-}
-
-.markdown-content h1 { 
-  font-size: 1.8em; 
-  border-bottom: 2px solid #4a5568;
-  padding-bottom: 8px;
-}
-
-.markdown-content h2 { 
-  font-size: 1.5em;
-  border-bottom: 1px solid #4a5568;
-  padding-bottom: 6px;
-}
-
-.markdown-content h3 { font-size: 1.3em; }
-.markdown-content h4 { font-size: 1.1em; }
-
-.markdown-content p {
-  margin-bottom: 16px;
-  margin-top: 0;
-}
-
-.markdown-content ul,
-.markdown-content ol {
-  margin-left: 0;
-  margin-bottom: 16px;
-  padding-left: 28px;
-}
-
-.markdown-content ul {
-  list-style-type: disc;
-}
-
-.markdown-content ol {
-  list-style-type: decimal;
-}
-
-.markdown-content li {
-  margin-bottom: 8px;
-  padding-left: 8px;
-  line-height: 1.7;
-}
-
-.markdown-content li::marker {
-  color: #63b3ed;
-  font-weight: 600;
-}
-
-.markdown-content ul ul,
-.markdown-content ol ol,
-.markdown-content ul ol,
-.markdown-content ol ul {
-  margin-top: 8px;
-  margin-bottom: 8px;
-}
-
-.markdown-content code {
-  background-color: #1a202c;
-  padding: 3px 8px;
-  border-radius: 4px;
-  font-family: 'Fira Code', 'Courier New', monospace;
-  font-size: 0.9em;
-  color: #90cdf4;
-  border: 1px solid #4a5568;
-}
-
-.markdown-content pre {
-  background-color: #1a202c;
-  padding: 16px;
-  border-radius: 8px;
-  overflow-x: auto;
-  margin: 16px 0;
-  border: 1px solid #4a5568;
-  box-shadow: inset 0 2px 4px rgba(0,0,0,0.2);
-}
-
-.markdown-content pre code {
-  background-color: transparent;
-  padding: 0;
-  border: none;
-  font-size: 0.95em;
-  line-height: 1.6;
-}
-
-/* Enhanced Table Styling */
-.markdown-content table {
-  border-collapse: separate;
-  border-spacing: 0;
-  width: 100%;
-  margin: 20px 0;
-  background-color: #2d3748;
-  border-radius: 8px;
-  overflow: hidden;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-  border: 1px solid #4a5568;
-}
-
-.markdown-content thead {
-  background-color: #1a202c;
-}
-
-.markdown-content th,
-.markdown-content td {
-  border-right: 1px solid #4a5568;
-  border-bottom: 1px solid #4a5568;
-  padding: 12px 16px;
-  text-align: left;
-}
-
-.markdown-content th:last-child,
-.markdown-content td:last-child {
-  border-right: none;
-}
-
-.markdown-content tr:last-child td {
-  border-bottom: none;
-}
-
-.markdown-content th {
-  font-weight: 600;
-  color: #63b3ed;
-  text-transform: uppercase;
-  font-size: 0.85em;
-  letter-spacing: 0.5px;
-  border-bottom: 2px solid #1e88e5;
-}
-
-.markdown-content tbody tr {
-  transition: background-color 0.2s;
-}
-
-.markdown-content tbody tr:hover {
-  background-color: #374151;
-}
-
-.markdown-content tbody tr:nth-child(even) {
-  background-color: rgba(0, 0, 0, 0.1);
-}
-
-/* Center aligned cells */
-.markdown-content td[align="center"],
-.markdown-content th[align="center"] {
-  text-align: center;
-}
-
-/* Right aligned cells */
-.markdown-content td[align="right"],
-.markdown-content th[align="right"] {
-  text-align: right;
-}
-
-.markdown-content blockquote {
-  border-left: 4px solid #1e88e5;
-  padding: 12px 16px;
-  margin: 16px 0;
-  background-color: #1a202c;
-  border-radius: 4px;
-  color: #cbd5e0;
-  font-style: italic;
-}
-
-.markdown-content blockquote p {
-  margin-bottom: 0;
-}
-
-.markdown-content strong {
-  font-weight: 700;
-  color: #90cdf4;
-}
-
-.markdown-content em {
-  font-style: italic;
-  color: #a0aec0;
-}
-
-.markdown-content a {
-  color: #63b3ed;
-  text-decoration: none;
-  border-bottom: 1px solid transparent;
-  transition: border-color 0.2s;
-}
-
-.markdown-content a:hover {
-  border-bottom-color: #63b3ed;
-}
-
-.markdown-content hr {
-  border: none;
-  border-top: 2px solid #4a5568;
-  margin: 24px 0;
 }
 
 /* Scrollbar Styling */

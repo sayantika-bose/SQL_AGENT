@@ -18,7 +18,7 @@ from worker.src.utils.prompt_loader import load_prompt
 logger = logging.getLogger(__name__)
 
 
-def get_ollama_model(model_name: str = "gpt-oss:20b-cloud") -> ChatOllama:
+def get_ollama_model(model_name: str = "gpt-oss:120b-cloud") -> ChatOllama:
     """Get ChatOllama model instance with tool support."""
     return ChatOllama(
         model=model_name,
