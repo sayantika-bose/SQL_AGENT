@@ -1,4 +1,3 @@
-
 # SQL Agent - GenAI Chatbot Application
 
 ## Overview
@@ -105,18 +104,67 @@ The frontend will be available at **http://localhost:5000**.
 The application uses a relational **SQLite** database located at `query_expert_app/data_api/src/db/financial_data.db`.
 
 ### Tables Overview
-The database contains several related tables that store financial and transactional information:
-- **Users** – Stores user information such as `user_id`, `name`, and `email`.
-- **Orders** – Stores purchase order details, each linked to a user via `user_id`.
-- **Products** – Contains product details including `product_id`, `name`, and `price`.
-- **FinancialTransactions** – Records transaction data, linking users and orders.
+The database contains several related tables that store financial, operational, and port activity data:
+
+1. **Volumes** – Stores port volume data with commodity and entity information
+   - Columns: `Port`, `State`, `Commodity`, `Entity`, `Type`, `Period`, `Value`
+   
+2. **BalanceSheet** – Contains hierarchical financial balance sheet data
+   - Columns: `Line Item`, `Category`, `SubCategory`, `SubSubCategory`, `Period`, `Value`
+   
+3. **CashFlowStatement** – Records cash flow items by category and period
+   - Columns: `Item`, `Category`, `Period`, `Value`
+   - Foreign Keys: References `BalanceSheet` (`Category`, `Period`)
+   
+4. **Consolidated_PnL** – Stores consolidated profit and loss statement data
+   - Columns: `Line Item`, `Period`, `Value`
+   - Foreign Keys: References `BalanceSheet` (`Line Item`, `Period`)
+   
+5. **Quarterly_PnL** – Contains quarterly profit and loss data with period types
+   - Columns: `Item`, `Category`, `Period`, `Value`, `Period Type`
+   - Foreign Keys: References `BalanceSheet` (`Category`, `Period`)
+   
+6. **Containers** – Records container-related metrics by port and entity
+   - Columns: `Port`, `Entity`, `Type`, `Period`, `Value`
+   - Foreign Keys: References `Volumes` (`Port`, `Period`)
+   
+7. **ROCE_External** – Stores external Return on Capital Employed metrics
+   - Columns: `Particular`, `Period`, `Value`
+   - Foreign Keys: References `BalanceSheet` (`Period`)
+   
+8. **ROCE_Internal** – Contains internal ROCE data categorized by port and line item
+   - Columns: `Category`, `Port`, `Line Item`, `Period`, `Value`
+   - Foreign Keys: References `BalanceSheet` (`Category`, `Line Item`, `Period`) and `Volumes` (`Port`)
+   
+9. **RORO** – Records Roll-on/Roll-off vessel operations and vehicle counts
+   - Columns: `Port`, `Type`, `Period`, `Value`, `Number of Cars`
+   - Foreign Keys: References `Volumes` (`Port`, `Period`)
 
 ### Relationships
-- **Users ↔ Orders**: One-to-Many (one user can have multiple orders)
-- **Orders ↔ FinancialTransactions**: One-to-Many (one order can have multiple transactions)
-- **Products ↔ Orders**: Many-to-Many through an intermediate join table (if implemented)
+- **BalanceSheet** acts as a central reference table for financial data:
+  - Referenced by `CashFlowStatement` (Category, Period)
+  - Referenced by `Consolidated_PnL` (Line Item, Period)
+  - Referenced by `Quarterly_PnL` (Category, Period)
+  - Referenced by `ROCE_External` (Period)
+  - Referenced by `ROCE_Internal` (Category, Line Item, Period)
 
-This relational design ensures data normalization, reducing redundancy and improving query performance for analytics and reporting.
+- **Volumes** serves as a reference for operational port data:
+  - Referenced by `Containers` (Port, Period)
+  - Referenced by `ROCE_Internal` (Port)
+  - Referenced by `RORO` (Port, Period)
+
+### Database Creation
+The database is populated from CSV files using the import script. Each table corresponds to a CSV file with matching column names. The script:
+1. Creates tables with appropriate schema and foreign key constraints
+2. Imports data from CSV files located in the configured CSV folder path
+3. Maintains referential integrity through foreign key relationships
+
+### Configuration
+Database and CSV paths are configured via environment variables:
+- `DATABASE_PATH` – Path to the SQLite database file
+- `CSV_FOLDER_PATH` – Directory containing the source CSV files
+
+This relational design ensures data normalization and maintains consistency across financial statements, operational metrics, and port activity data, enabling complex analytical queries and reporting.
 
 ## Design Choices
 
@@ -147,4 +195,3 @@ This guided prompting ensures the model generates contextually relevant SQL comm
 ## Limitations
 - Currently limited to SQLite; scaling to PostgreSQL or MySQL may require schema migration.
 - Ollama model performance depends on system resources (RAM/VRAM).
-- No authentication layer yet for API endpoints (planned enhancement).
