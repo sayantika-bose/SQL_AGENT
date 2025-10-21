@@ -3,10 +3,10 @@ import pandas as pd
 import os
 
 # Database file
-db_file = os.environ("DATABASE_PATH")
+db_file = os.environ.get("DATABASE_PATH")
 
 # CSV folder (assuming CSVs are in the same folder as script)
-csv_folder = os.environ("CSV_FOLDER_PATH")
+csv_folder = os.environ.get("CSV_FOLDER_PATH")
 
 # Connect to SQLite database (it will create if it doesn't exist)
 conn = sqlite3.connect(db_file)
