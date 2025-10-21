@@ -3,7 +3,7 @@ import pandas as pd
 import sqlite3
 
 # 🔧 CONFIG
-csv_folder = "C:/Users/HP/Downloads/Financial_data"   # update this path
+csv_folder = os.environ.get("DATABASE_PATH") # update this path
 db_file = "financial_data.db"
 
 # Connect to SQLite
