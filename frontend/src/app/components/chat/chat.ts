@@ -14,6 +14,7 @@ interface Message {
   timestamp: Date;
   userQuestion?: string;
   isRegenerating?: boolean;
+  references?: string[];
 }
 
 @Component({
@@ -159,6 +160,7 @@ export class ChatComponent implements OnDestroy, AfterViewChecked {
             this.currentTaskId = null;
 
             let resultContent = 'Task completed successfully.';
+            let references: string[] = [];
 
             if (response.result) {
               try {
@@ -170,10 +172,21 @@ export class ChatComponent implements OnDestroy, AfterViewChecked {
 
                 const parsedResult = JSON.parse(fixedResult);
 
-                if (parsedResult && typeof parsedResult === 'object' && 'response' in parsedResult) {
-                  resultContent = parsedResult.response;
-                } else if (parsedResult && typeof parsedResult === 'object' && 'answer' in parsedResult) {
-                  resultContent = parsedResult.answer;
+                if (parsedResult && typeof parsedResult === 'object') {
+                  if ('response' in parsedResult) {
+                    resultContent = parsedResult.response;
+                  } else if ('answer' in parsedResult) {
+                    resultContent = parsedResult.answer;
+                  } else if (typeof parsedResult === 'string') {
+                    resultContent = parsedResult;
+                  } else {
+                    resultContent = response.result;
+                  }
+
+                  // Extract references if available
+                  if ('references' in parsedResult && Array.isArray(parsedResult.references)) {
+                    references = parsedResult.references;
+                  }
                 } else if (typeof parsedResult === 'string') {
                   resultContent = parsedResult;
                 } else {
@@ -193,7 +206,8 @@ export class ChatComponent implements OnDestroy, AfterViewChecked {
               content: resultContent,
               htmlContent: htmlContent,
               timestamp: new Date(),
-              userQuestion: userQuestion
+              userQuestion: userQuestion,
+              references: references
             });
 
             this.shouldScroll = true;
@@ -313,6 +327,22 @@ export class ChatComponent implements OnDestroy, AfterViewChecked {
     html = html.replace(/<p>\s*<\/p>/g, '');
     
     return html.trim();
+  }
+
+  getFileExtension(filename: string): string {
+    const extension = filename.split('.').pop()?.toLowerCase() || '';
+    return extension;
+  }
+
+  getFileTypeClass(filename: string): string {
+    const extension = this.getFileExtension(filename);
+    
+    if (extension === 'pdf') return 'pdf';
+    if (['doc', 'docx'].includes(extension)) return 'doc';
+    if (['txt', 'md'].includes(extension)) return 'txt';
+    if (['xlsx', 'xls', 'csv'].includes(extension)) return 'xlsx';
+    
+    return 'default';
   }
 
   ngOnDestroy() {

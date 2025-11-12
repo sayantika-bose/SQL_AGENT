@@ -1,7 +1,7 @@
 """
 Task for handling user questions with LangGraph agent and SQL Agent Tool.
 """
-from typing import Dict, Any, Literal
+from typing import Dict, Any, Literal, List
 import logging
 
 from worker.src.core.celery_app import celery_app, update_task_progress
@@ -13,9 +13,13 @@ from langgraph.prebuilt import ToolNode
 from langchain_core.messages import HumanMessage, SystemMessage
 
 from worker.src.tools.sql_tool import SQLAgentTool
+from worker.src.tools.doc_tool import create_document_tool
 from worker.src.utils.prompt_loader import load_prompt
+from worker.src.utils.config_helpers import get_worker_config
+from worker.src.utils.document_utils import extract_document_references
 
 logger = logging.getLogger(__name__)
+
 
 
 def get_ollama_model(model_name: str = "gpt-oss:120b-cloud") -> ChatOllama:
@@ -33,7 +37,18 @@ def create_agent_graph():
     
     # Initialize SQL Agent Tool
     sql_agent = SQLAgentTool()
-    tools = [sql_agent]
+    
+    # Initialize Document Tool with config
+    worker_config = get_worker_config()
+    doc_config = worker_config.get("document_tool", {})
+    
+    doc_tool = create_document_tool(
+        indexer_url=doc_config.get("indexer_url", "http://localhost:8002"),
+        max_results=doc_config.get("max_results", 5),
+        access_level=doc_config.get("access_level", "administrator")
+    )
+    
+    tools = [sql_agent, doc_tool]
     
     # Bind tools to LLM
     llm_with_tools = llm.bind_tools(tools)
@@ -135,7 +150,7 @@ def process_user_question(self, question_data: Dict[str, Any]) -> Dict[str, Any]
         
         # Invoke the agent
         logger.info(f"Processing question: {question}")
-        update_task_progress(task_id, f"Fetching information from DB and analyzing...")
+        update_task_progress(task_id, f"Using tools to answer your question...")
         
         result = agent.invoke({
             "messages": [system_message, human_message]
@@ -143,15 +158,36 @@ def process_user_question(self, question_data: Dict[str, Any]) -> Dict[str, Any]
         
         update_task_progress(task_id, "Question processed, extracting response")
         
-        # Extract the final response
+        # Extract the final response and document references
         messages = result["messages"]
         final_response = messages[-1].content if messages else "No response generated"
         
-        update_task_progress(task_id, "Formatting final response")
+        # Extract document references from tool responses
+        document_references = []
+        for message in messages:
+            # Check if this is a tool response message with document content
+            if hasattr(message, "content") and message.content:
+                refs = extract_document_references(message.content)
+                document_references.extend(refs)
+        
+        # Remove duplicates while preserving order
+        unique_references = []
+        seen = set()
+        for ref in document_references:
+            if ref not in seen:
+                unique_references.append(ref)
+                seen.add(ref)
+        
+        # Clean the final response by removing the marker
+        import re
+        final_response = re.sub(r'\n\n__DOCUMENT_REFERENCES__:[^\n]*', '', final_response)
+        
+        update_task_progress(task_id, "Formatting final response with references")
         
         response_data = {
             "question": question,
             "response": final_response,
+            "references": unique_references,
             "success": True,
             "message_count": len(messages)
         }

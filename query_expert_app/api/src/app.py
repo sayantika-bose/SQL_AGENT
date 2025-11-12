@@ -35,12 +35,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Root endpoint
-@app.get("/")
-def read_root():
-    """Root endpoint."""
-    return {"message": "Query Expert App API is running"}
-
 # Include routers
 app.include_router(base_router, prefix="/api")
 app.include_router(askRouter, prefix="/api")

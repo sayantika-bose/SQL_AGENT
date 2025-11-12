@@ -43,6 +43,22 @@
           <div class="message-text" 
                [innerHTML]="message.htmlContent">
           </div>
+          
+          <!-- Document References -->
+          <div *ngIf="message.references && message.references.length > 0" 
+               class="document-references">
+            <div class="references-label">
+              📎 Source Documents:
+            </div>
+            <div class="reference-tags">
+              <span *ngFor="let reference of message.references" 
+                    class="reference-tag"
+                    [ngClass]="'reference-' + getFileTypeClass(reference)"
+                    [title]="reference">
+                {{ reference }}
+              </span>
+            </div>
+          </div>
         </div>
         <div class="message-footer">
           <span class="message-time">{{ message.timestamp | date:'short' }}</span>

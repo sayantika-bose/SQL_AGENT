@@ -1,0 +1,13 @@
+This is a sample document for testing the indexer service.
+
+The document contains multiple paragraphs with different topics.
+This paragraph discusses machine learning and artificial intelligence.
+Machine learning algorithms can process large amounts of data efficiently.
+
+Another paragraph talks about natural language processing.
+NLP techniques are used to understand and generate human language.
+Text processing involves tokenization, parsing, and semantic analysis.
+
+The final paragraph covers information retrieval systems.
+Search engines use various ranking algorithms to find relevant documents.
+Vector databases enable semantic search capabilities.

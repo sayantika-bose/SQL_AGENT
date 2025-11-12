@@ -191,6 +191,109 @@
   font-size: 18px;
 }
 
+/* Document References */
+.document-references {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid #4a5568;
+}
+
+.references-label {
+  font-size: 13px;
+  color: #a0aec0;
+  margin-bottom: 8px;
+  font-weight: 500;
+}
+
+.reference-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.reference-tag {
+  background: rgba(102, 126, 234, 0.2);
+  color: #e2e8f0;
+  border: 1px solid rgba(102, 126, 234, 0.4);
+  padding: 4px 10px;
+  border-radius: 14px;
+  font-size: 11px;
+  font-weight: 500;
+  display: inline-block;
+  transition: all 0.2s ease;
+  cursor: pointer;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.reference-tag:hover {
+  transform: translateY(-1px);
+  background: rgba(102, 126, 234, 0.3);
+  border-color: rgba(102, 126, 234, 0.6);
+}
+
+/* File type specific colors with transparency */
+.reference-pdf {
+  background: rgba(229, 62, 62, 0.2);
+  border-color: rgba(229, 62, 62, 0.4);
+  color: #feb2b2;
+}
+
+.reference-pdf:hover {
+  background: rgba(229, 62, 62, 0.3);
+  border-color: rgba(229, 62, 62, 0.6);
+}
+
+.reference-doc {
+  background: rgba(49, 130, 206, 0.2);
+  border-color: rgba(49, 130, 206, 0.4);
+  color: #90cdf4;
+}
+
+.reference-doc:hover {
+  background: rgba(49, 130, 206, 0.3);
+  border-color: rgba(49, 130, 206, 0.6);
+}
+
+.reference-txt {
+  background: rgba(56, 161, 105, 0.2);
+  border-color: rgba(56, 161, 105, 0.4);
+  color: #9ae6b4;
+}
+
+.reference-txt:hover {
+  background: rgba(56, 161, 105, 0.3);
+  border-color: rgba(56, 161, 105, 0.6);
+}
+
+.reference-xlsx {
+  background: rgba(214, 158, 46, 0.2);
+  border-color: rgba(214, 158, 46, 0.4);
+  color: #f6e05e;
+}
+
+.reference-xlsx:hover {
+  background: rgba(214, 158, 46, 0.3);
+  border-color: rgba(214, 158, 46, 0.6);
+}
+
+.reference-default {
+  background: rgba(113, 128, 150, 0.2);
+  border-color: rgba(113, 128, 150, 0.4);
+  color: #cbd5e0;
+}
+
+.reference-default:hover {
+  background: rgba(113, 128, 150, 0.3);
+  border-color: rgba(113, 128, 150, 0.6);
+}
+
+.reference-default {
+  background: linear-gradient(135deg, #718096 0%, #4a5568 100%);
+}
+
 /* Enhanced Loader */
 .loader-container {
   display: flex;

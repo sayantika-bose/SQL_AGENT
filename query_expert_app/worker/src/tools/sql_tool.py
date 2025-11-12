@@ -197,23 +197,8 @@ class SQLAgentTool(BaseTool):
         content = content.strip()
         analysis = json.loads(content)
         
-        # Ensure all required fields exist with defaults
-        default_analysis = {
-            "needs_schema": False,
-            "needs_sample": False,
-            "likely_tables": [],
-            "question_type": "general",
-            "keywords": []
-        }
-        
-        # Merge with defaults
-        for key, default_value in default_analysis.items():
-            if key not in analysis:
-                analysis[key] = default_value
-        
         logger.info(f"LLM Analysis: {analysis}")
         return analysis
-    
     
     def _generate_schema_summary(self) -> str:
         """Generate a human-readable schema summary"""
@@ -236,74 +221,91 @@ class SQLAgentTool(BaseTool):
         
         return summary
     
-    def _build_query_from_analysis(self, question: str, analysis: Dict[str, Any]) -> Optional[str]:
-        """Build SQL query based on question analysis"""
-        question_lower = question.lower()
+    def _get_relevant_schema(self, likely_tables: List[str]) -> Dict[str, Any]:
+        """Get schema information only for likely tables"""
+        full_schema = self._get_schema()
+        relevant_schema = {}
         
-        # If specific tables identified, use them
-        if analysis["likely_tables"]:
-            table = analysis["likely_tables"][0]
-            
-            # Count queries
-            if "how many" in question_lower or "count" in question_lower:
-                return f"SELECT COUNT(*) as count FROM {table}"
-            
-            # Top/best queries
-            if "top" in question_lower or "best" in question_lower or "most" in question_lower:
-                # Try to identify number
-                import re
-                numbers = re.findall(r'\d+', question)
-                limit = int(numbers[0]) if numbers else 5
-                
-                # Try to identify sort column
-                schema = self._get_schema()
-                table_cols = schema.get(table, [])
-                
-                # Common sort columns
-                sort_col = None
-                for col in table_cols:
-                    col_name = col['name'].lower()
-                    if any(word in question_lower for word in ['price', 'amount', 'total', 'cost']) and 'price' in col_name or 'amount' in col_name:
-                        sort_col = col['name']
-                        break
-                
-                if sort_col:
-                    return f"SELECT * FROM {table} ORDER BY {sort_col} DESC LIMIT {limit}"
-                else:
-                    return f"SELECT * FROM {table} LIMIT {limit}"
-            
-            # Recent queries
-            if "recent" in question_lower or "latest" in question_lower or "last" in question_lower:
-                schema = self._get_schema()
-                table_cols = schema.get(table, [])
-                
-                # Find date/timestamp column
-                date_col = None
-                for col in table_cols:
-                    col_name = col['name'].lower()
-                    if any(word in col_name for word in ['date', 'time', 'created', 'updated']):
-                        date_col = col['name']
-                        break
-                
-                if date_col:
-                    return f"SELECT * FROM {table} ORDER BY {date_col} DESC LIMIT 10"
-                else:
-                    return f"SELECT * FROM {table} LIMIT 10"
-            
-            # Status/filter queries
-            if "status" in question_lower or "where" in question_lower:
-                # Try to extract status value
-                import re
-                # Look for quoted strings or specific status words
-                status_match = re.search(r"'([^']+)'|\"([^\"]+)\"|status\s+(\w+)", question_lower)
-                if status_match:
-                    status = status_match.group(1) or status_match.group(2) or status_match.group(3)
-                    return f"SELECT * FROM {table} WHERE status = '{status}' LIMIT 10"
-            
-            # Default: show sample
-            return f"SELECT * FROM {table} LIMIT 10"
+        for table_name in likely_tables:
+            if table_name in full_schema:
+                relevant_schema[table_name] = full_schema[table_name]
+            else:
+                logger.warning(f"Table '{table_name}' not found in schema")
         
-        return None
+        return relevant_schema
+    
+    def _generate_query_with_llm(self, question: str, analysis: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """Generate SQL query using LLM based on question and analysis"""
+        try:
+            # Initialize LLM
+            llm = ChatOllama(
+                model="gpt-oss:120b-cloud",
+                temperature=0
+            )
+            
+            # Get schema information only for likely tables
+            likely_tables = analysis.get("likely_tables", [])
+            if not likely_tables:
+                logger.warning("No likely tables identified for query generation")
+                return {
+                    "query": None,
+                    "explanation": "No relevant tables identified for the question",
+                    "confidence": 0.0
+                }
+            
+            relevant_schema = self._get_relevant_schema(likely_tables)
+            
+            # Get sample data if needed and available
+            sample_data = None
+            sample_table = None
+            if analysis.get("needs_sample") and likely_tables:
+                sample_table = likely_tables[0]
+                sample_result = self._get_table_sample(sample_table, limit=2)
+                if sample_result.get("success"):
+                    sample_data = sample_result.get("data", [])
+            
+            # Load prompts from Jinja2 templates
+            system_prompt = load_prompt("sql_generator_system.j2")
+            human_prompt = load_prompt(
+                "sql_generator_human.j2",
+                question=question,
+                analysis=analysis,
+                schema=relevant_schema,  # Only relevant tables
+                sample_data=sample_data,
+                sample_table=sample_table
+            )
+            
+            system_message = SystemMessage(content=system_prompt)
+            human_message = HumanMessage(content=human_prompt)
+            
+            # Get LLM response
+            response = llm.invoke([system_message, human_message])
+            content = response.content.strip()
+            
+            # Remove markdown code blocks if present
+            if content.startswith("```json"):
+                content = content[7:]
+            if content.startswith("```"):
+                content = content[3:]
+            if content.endswith("```"):
+                content = content[:-3]
+            
+            content = content.strip()
+            
+            # Parse LLM response
+            query_result = json.loads(content)
+            
+            logger.info(f"LLM Query Generation: {query_result}")
+            return query_result
+            
+        except Exception as e:
+            logger.error(f"Error generating query with LLM: {str(e)}")
+            return {
+                "query": None,
+                "explanation": f"Error generating query: {str(e)}",
+                "confidence": 0.0
+            }
+    
     
     def _format_results(self, results: Dict[str, Any], question: str) -> str:
         """Format query results into natural language"""
@@ -370,46 +372,26 @@ class SQLAgentTool(BaseTool):
             analysis = self._analyze_question(question)
             logger.info(f"Question analysis: {analysis}")
             
-            # Step 2: Handle schema questions
-            if analysis["question_type"] == "schema":
-                if "tables" in question.lower() or "what tables" in question.lower():
-                    tables = self._get_tables()
-                    return f"The database contains {len(tables)} tables: {', '.join(tables)}"
-                else:
-                    return self._generate_schema_summary()
+            # Step 2: Generate query using LLM
+            query_result = self._generate_query_with_llm(question, analysis)
+            query = None
             
-            # Step 3: Get schema if needed
-            schema = self._get_schema()
-            if not schema:
-                return "Error: Unable to access database schema."
-            
-            # Step 4: Identify relevant tables
-            if not analysis["likely_tables"]:
-                # If no tables identified, list available tables
-                tables = self._get_tables()
-                return (f"I couldn't identify which table to query. "
-                       f"Available tables are: {', '.join(tables)}. "
-                       f"Please specify which table you're interested in.")
-            
-            # Step 5: Get sample data if needed
-            if analysis["needs_sample"]:
-                table = analysis["likely_tables"][0]
-                sample = self._get_table_sample(table, limit=2)
-                logger.info(f"Got sample from {table}")
-            
-            # Step 6: Generate and execute query
-            query = self._build_query_from_analysis(question, analysis)
+            if query_result and query_result.get("query"):
+                query = query_result["query"]
+                explanation = query_result.get("explanation", "")
+                confidence = query_result.get("confidence", 0.0)
+                
+                logger.info(f"Generated query: {query}")
+                logger.info(f"Explanation: {explanation}")
+                logger.info(f"Confidence: {confidence}")
+                
+                # Only use query if confidence is reasonable
+                if confidence < 0.5:
+                    logger.warning(f"Low confidence query ({confidence}): {query}")
+                    query = None
             
             if not query:
-                # Fallback: show table info
-                table = analysis["likely_tables"][0]
-                info = self._get_table_info(table)
-                if info.get("success"):
-                    return (f"Table '{table}' has {info.get('row_count', 0)} rows "
-                           f"with {len(info.get('columns', []))} columns. "
-                           "Please ask a more specific question.")
-                else:
-                    return "I need more information to answer your question. Please be more specific."
+                return "I need more information to answer your question. Please be more specific."
             
             logger.info(f"Executing query: {query}")
             results = self._execute_query(query)

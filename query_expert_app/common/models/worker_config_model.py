@@ -20,16 +20,13 @@ class TasksConfig(BaseModel):
     retry_delay: int = Field(60, description="Retry delay in seconds")
     progress_update_interval: int = Field(5, description="Progress update interval in seconds")
 
-class LogAnalysisConfig(BaseModel):
-    batch_size: int = Field(100, description="Batch size for log processing")
-    analysis_methods: List[str] = Field(
-        ["pattern_matching", "anomaly_detection", "correlation"],
-        description="Available analysis methods"
-    )
-    enable_detailed_logging: bool = Field(True, description="Enable detailed logging")
-    max_log_size_mb: int = Field(50, description="Maximum log size in MB")
+class DocumentToolConfig(BaseModel):
+    indexer_url: str = Field("http://localhost:8002", description="Indexer service URL")
+    max_results: int = Field(5, description="Maximum search results")
+    access_level: str = Field("administrator", description="Document access level")
+    timeout: int = Field(30, description="Request timeout in seconds")
 
 class WorkerConfig(BaseModel):
     celery: CeleryConfig = Field(..., description="Celery configuration")
     tasks: TasksConfig = Field(..., description="Tasks configuration")
-    log_analysis: LogAnalysisConfig = Field(..., description="Log analysis configuration")
+    document_tool: DocumentToolConfig = Field(default_factory=DocumentToolConfig, description="Document tool configuration")

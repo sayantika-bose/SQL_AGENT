@@ -17,10 +17,11 @@
     "retry_delay": 60,
     "progress_update_interval": 5
   },
-  "log_analysis": {
-    "batch_size": 100,
-    "analysis_methods": ["pattern_matching", "anomaly_detection", "correlation"],
-    "enable_detailed_logging": true,
-    "max_log_size_mb": 50
+  
+  "document_tool": {
+    "indexer_url": "http://localhost:8002",
+    "max_results": 5,
+    "access_level": "administrator",
+    "timeout": 30
   }
 }

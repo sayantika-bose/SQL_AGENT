@@ -1,0 +1,26 @@
+USER QUESTION: "{{ question }}"
+
+ANALYSIS RESULTS:
+- Question Type: {{ analysis.question_type }}
+- Likely Tables: {{ analysis.likely_tables | join(', ') }}
+- Keywords: {{ analysis.keywords | join(', ') }}
+- Reasoning: {{ analysis.reasoning }}
+
+RELEVANT TABLE SCHEMAS:
+{% for table_name, columns in schema.items() %}
+Table: {{ table_name }}
+Columns:
+{% for col in columns %}
+  - {{ col.name }} ({{ col.type }}){% if col.pk %} [PRIMARY KEY]{% endif %}{% if col.notnull %} [NOT NULL]{% endif %}
+{% endfor %}
+
+{% endfor %}
+
+{% if sample_data %}
+SAMPLE DATA (from {{ sample_table }}):
+{% for row in sample_data %}
+Row {{ loop.index }}: {{ row }}
+{% endfor %}
+{% endif %}
+
+Generate an appropriate SQL SELECT query to answer the user's question. Consider the question type, relevant tables, and schema information provided.
